@@ -21,7 +21,10 @@ for Course Practice. Offline it shows Loading and then goes back to the menu. On
   - `svcBreak` result codes; `RECOMP_LOG_IPC`
 - ✅ Boots to the main menu on macOS at 60 fps: Daily Challenges, the main menu, Course Practice's course select
 - ✅ CI: the guard, the package-check tests, the runtime compile on Linux, the recomp unit tests
-- ✅ v0.1.0 release: macOS, Windows and Linux packages (launcher plus recompiler, no game code)
+- ✅ [v0.1.0](https://github.com/sm35recomp/sm35recomp/releases/tag/v0.1.0) (2026-10-20): macOS, Windows and Linux
+  packages (launcher plus recompiler, no game code). The macOS package was tested as a player would use it: from the
+  owner's two NSPs through setup and a 4-minute recompile to the game at 60 fps. That test found and fixed the update's
+  version number and the RomFS patching over the base NCA.
 - ✅ The iOS app compiles and is signed for the owner's iPad (not installed yet: the iPad is off Tailscale)
 
 ## Phase 1: The online service, through Nextendo ⬜
