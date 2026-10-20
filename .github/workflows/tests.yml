@@ -1,0 +1,45 @@
+name: tests
+
+# Linux jobs only (cheap). scripts/check.sh runs every gate locally (including the recomp's macOS compile check)
+# before each commit.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The proprietary-content guard's own tests, the release packages' game-content check and the launcher's dump
+  # setup (synthetic files: CI has no game data or keys).
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/test_check_no_proprietary.py -v
+      - run: python scripts/test_check_package.py -v
+
+  # Runtime unit tests that need no game files and no SDL / Vulkan (shader prefetch's build states)
+  recomp-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -C recomp test-buildsync
+
+  # The runtime compiles for Linux (native clang against Debian 13's SDL3 / Vulkan / shaderc; no game files, no link)
+  linux-runtime:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Compiler and libraries
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git make clang lld \
+            libsdl3-dev libvulkan-dev libshaderc-dev libvulkan-memory-allocator-dev
+      - uses: actions/checkout@v4
+      - run: make -C recomp -j"$(nproc)" GAME=sm35 runtime-objs

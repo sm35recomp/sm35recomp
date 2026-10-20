@@ -1,0 +1,36 @@
+# --- Proprietary game dumps, keys and extracted data: NEVER commit ---
+*.xci
+*.xcz
+*.nsp
+*.nsz
+*.nca
+*.ncz
+*.nso
+*.tik
+*keys*.txt
+*.keys
+prod.keys
+title.keys
+
+# Private reverse-engineering notes
+/research/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Archives and other dump files in the project root
+*.7z
+*.7z.[0-9][0-9][0-9]
+*.zip
+*.rar
+
+# agent worktrees (local only)
+/.claude/worktrees/
+
+# Build output
+/build/
+dist/

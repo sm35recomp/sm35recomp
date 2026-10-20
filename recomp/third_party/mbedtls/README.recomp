@@ -1,0 +1,11 @@
+Mbed TLS 3.6.7 (LTS), vendored for the recomp's ssl service (runtime/services/ssl.c).
+
+Source:   https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.7/mbedtls-3.6.7.tar.bz2
+SHA-256:  a7e8bcbec0e6f761b4af24f25677626b35f762f68eef79c08677a363212d11f6 (matches the release's checksum file)
+Licence:  Mbed TLS is dual-licensed Apache-2.0 OR GPL-2.0-or-later; the recomp takes it under Apache-2.0.
+          The full text is in LICENSE (both licences, as shipped). Copyright The Mbed TLS Contributors.
+Kept:     include/ and library/ as released (sources unmodified), LICENSE.
+Removed:  the build files (CMakeLists.txt, Makefile, .gitignore), programs/, tests/ (its data files hold test keys
+          and certificates), docs/, scripts/, 3rdparty/ (not enabled), configs/, framework/, visualc/.
+Options:  runtime/net/mbedtls_user_config.h (MBEDTLS_USER_CONFIG_FILE): TLS 1.2 client only, no net/timing modules.
+Build:    recomp/Makefile (MBEDTLS_OBJ), compiled into the runtime on every platform.

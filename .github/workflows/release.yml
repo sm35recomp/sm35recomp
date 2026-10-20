@@ -1,0 +1,125 @@
+name: release
+
+# Player packages, built only when a release tag (v*) is pushed - never on ordinary pushes (Actions minutes are
+# limited). Each package is the launcher + runtime, Python, the recompiler, zig and hactool: nothing from the game
+# (scripts/check_package.py checks every file again before upload). The packages are attached to the tag's GitHub
+# release; if there is none yet, a draft release is made for the owner to review and publish.
+#   Windows x86-64 (.zip) and Linux x86-64 / arm64 (.tar.gz): cross-built with zig in a Debian 13 container
+#   macOS arm64 (.app in a .zip): built on macOS, signed ad hoc (or with a Developer ID: secrets below)
+# A manual run (workflow_dispatch) builds and checks every package but publishes nothing: the packages stay on the
+# run as artifacts.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows-linux:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      # libshaderc-dev can't be installed for both architectures (its spirv-tools isn't multi-arch); arm64 gets only the
+      # library, libshaderc1, and shares the amd64 headers
+      - name: Tools and the Linux libraries (both architectures)
+        run: |
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git make zip unzip zstd xz-utils python3 python3-pip \
+            libsdl3-dev libvulkan-dev libshaderc-dev libvulkan-memory-allocator-dev \
+            libsdl3-dev:arm64 libvulkan-dev:arm64 libshaderc1:arm64
+      - uses: actions/checkout@v4
+      - name: zig and the cross-build dependencies
+        working-directory: recomp
+        run: |
+          tools/fetch_zig.sh
+          tools/fetch_deps.sh windows-x86_64
+          tools/fetch_deps.sh linux-x86_64
+          tools/fetch_deps.sh linux-aarch64
+      - name: Windows x86-64
+        working-directory: recomp
+        run: make -j"$(nproc)" TARGET=windows-x86_64 GAME=sm35 DEPS="$PWD/build/deps-windows-x86_64" RECOMP_VERSION="${GITHUB_REF_NAME}" package
+      - name: Linux x86-64
+        working-directory: recomp
+        run: make -j"$(nproc)" TARGET=linux-x86_64 GAME=sm35 DEPS="$PWD/build/deps-linux-x86_64" RECOMP_VERSION="${GITHUB_REF_NAME}" package
+      - name: Linux arm64
+        working-directory: recomp
+        run: make -j"$(nproc)" TARGET=linux-aarch64 GAME=sm35 DEPS="$PWD/build/deps-linux-aarch64" RECOMP_VERSION="${GITHUB_REF_NAME}" package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-windows-linux
+          path: |
+            recomp/dist/*.zip
+            recomp/dist/*.tar.gz
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-15
+    env:
+      # Optional signing with a Developer ID Application certificate: MACOS_CERT_P12 (base64 of the .p12),
+      # MACOS_CERT_PASSWORD, MACOS_IDENTITY (its name). Without them the app is signed ad hoc.
+      HAVE_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build tools
+        run: brew install ninja
+      - name: Signing identity (optional)
+        if: env.HAVE_CERT == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p ci "$RUNNER_TEMP/ci.keychain"
+          security set-keychain-settings "$RUNNER_TEMP/ci.keychain"
+          security unlock-keychain -p ci "$RUNNER_TEMP/ci.keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$RUNNER_TEMP/ci.keychain" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$RUNNER_TEMP/ci.keychain"
+          security list-keychains -d user -s "$RUNNER_TEMP/ci.keychain" login.keychain
+          rm "$RUNNER_TEMP/cert.p12"
+      - name: macOS arm64 (.app)
+        working-directory: recomp
+        env:
+          RECOMP_MACOS_IDENTITY: ${{ secrets.MACOS_IDENTITY }}
+        run: |
+          tools/fetch_zig.sh
+          make GAME=sm35 RECOMP_VERSION="${GITHUB_REF_NAME}" app-macos
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-macos
+          path: recomp/dist/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: [windows-linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Nothing from a game dump in any package
+        run: python3 scripts/check_package.py dist/*
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Attach to the release (a draft if there is none yet)
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --draft --verify-tag --title "SM35 Recomp $tag" \
+              --notes "Player packages for $tag: download the one for your system, start it, and point it at your own Super Mario Bros. 35 dump with the 1.0.1 update, plus your prod.keys and firmware (see README: Play it). No game files are included. Not affiliated with Nintendo."
+          fi
+          gh release upload "$tag" dist/* --clobber
