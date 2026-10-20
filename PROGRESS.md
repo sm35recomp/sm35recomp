@@ -117,13 +117,20 @@ most of the client side; it gets ported here and adapted to SM35.
    screen, the Android launcher, the Windows exe and window title, the Linux desktop entry, and the setup screen.
    The repo, executable and ids can stay `sm35recomp`. One thing to weigh: "Super Mario" is Nintendo's trademark, and
    an unofficial app under that name is more likely to draw a takedown than "SM 35".
-2. ⬜ Overlay menu tabs as in SMM2 (Video, Audio, Controls, Online, Quit), without the SMM2-only Mods tab.
-3. ⬜ Frame generation (120 fps output): try it on this game's 2D scenes; off by default, as in SMM2.
-4. ⬜ Shader prefetch and the pipeline cache tuned for SM35's shaders.
-5. ⬜ The update check and release notes flow (in place; check it once v0.2.0 exists).
-6. ⬜ Remove the leftover SMM2 course-server code (`runtime/net/embed_server.*`, `mods.ini` settings in `netcfg`)
+2. ⬜ Screenshots for the GitHub README (owner request, 2026-10-21), as SMM2 Recomp's `docs/screenshots/`:
+   - the setup screen
+   - the main menu
+   - Course Practice
+   - a 35-player battle, once Phase 3 works
+   - the overlay menu
+   Taken from the recomp at 1280x720, kept small (resized PNGs or JPEGs), and checked by the guard as SMM2's were.
+3. ⬜ Overlay menu tabs as in SMM2 (Video, Audio, Controls, Online, Quit), without the SMM2-only Mods tab.
+4. ⬜ Frame generation (120 fps output): try it on this game's 2D scenes; off by default, as in SMM2.
+5. ⬜ Shader prefetch and the pipeline cache tuned for SM35's shaders.
+6. ⬜ The update check and release notes flow (in place; check it once v0.2.0 exists).
+7. ⬜ Remove the leftover SMM2 course-server code (`runtime/net/embed_server.*`, `mods.ini` settings in `netcfg`)
    or reuse its routing for Nextendo.
-7. ⬜ `make test-tools` (it needs arguments: inherited from SMM2) and a macOS runtime compile job in CI.
+8. ⬜ `make test-tools` (it needs arguments: inherited from SMM2) and a macOS runtime compile job in CI.
 
 ## Phase 6: Keeping the two recomps in step ⬜
 
