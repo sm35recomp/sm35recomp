@@ -251,9 +251,9 @@ class Hactool:
                              'Choose your console\'s prod.keys (dumped with Lockpick_RCM).')
         self.exe, self.keys = exe, keys
 
-    def run(self, *args, what='hactool'):
+    def run(self, *args, what='hactool', env=None):
         r = subprocess.run([self.exe, '-k', self.keys, '--disablekeywarns', *args], capture_output=True,
-                           errors='replace', text=True)
+                           errors='replace', text=True, env=env)
         out = r.stdout + r.stderr
         if r.returncode != 0 or 'Invalid NCA header' in out or 'Failed to open' in out:
             # (hactool's own wording, masked: never key values)
@@ -320,6 +320,7 @@ def read_title(path, entries, hac, stage):
                                  'Dump the game again with a tool that writes a standard ticket (e.g. nxdumptool), or '
                                  'extract it yourself and choose the folders.')
             t['titlekey'] = tik[0x180:0x190].hex()
+            t['rights_id'] = tik[0x2A0:0x2B0].hex()
         titles.append(t)
     return titles
 
@@ -340,12 +341,12 @@ def watch_size(path, total, lo, hi, stop):
         say('progress', f'{lo + (hi - lo) * min(1.0, n / max(total, 1)):.3f}')
 
 
-def hactool_watched(hac, out_path, total, lo, hi, *args, what):
+def hactool_watched(hac, out_path, total, lo, hi, *args, what, env=None):
     stop = threading.Event()
     t = threading.Thread(target=watch_size, args=(out_path, total, lo, hi, stop), daemon=True)
     t.start()
     try:
-        hac.run(*args, what=what)
+        hac.run(*args, what=what, env=env)
     finally:
         stop.set()
         t.join()
@@ -400,28 +401,39 @@ def extract_containers(files, hac, stage):
     nca = os.path.join(stage, 'base.nca')
     say('step', 'Reading the game from ' + os.path.basename(bpath))
     copy_range(bpath, boff, bsize, nca, lambda n: None)
-    tk = [f'--titlekey={bt["titlekey"]}'] if bt['titlekey'] else []
     exefs, romfs = os.path.join(stage, 'exefs'), os.path.join(stage, 'romfs')
     for d in (exefs, romfs):
         shutil.rmtree(d, ignore_errors=True)
-    raw = os.path.join(stage, 'base.romfs')
-    say('step', 'Extracting the game files')
-    hactool_watched(hac, raw, bsize, 0.05, 0.3, *tk, '-t', 'nca', f'--romfs={raw}', nca, what='Extracting the game')
-    os.remove(nca)
-    if not os.path.isfile(raw) or os.path.getsize(raw) < versions.ROMFS_MIN_BYTES:
-        raise SetupError('DECRYPT', 'The game couldn\'t be decrypted',
-                         'prod.keys must be your console\'s and hold the keys for this game (dump them again with a '
-                         'current Lockpick_RCM); an NSP also needs its ticket.')
     upath, ut = upd
     uname, uoff, usize = ut['program']
     unca = os.path.join(stage, 'update.nca')
-    say('step', 'Applying the update from ' + os.path.basename(upath))
+    say('step', 'Reading the update from ' + os.path.basename(upath))
     copy_range(upath, uoff, usize, unca)
-    tk = [f'--titlekey={ut["titlekey"]}'] if ut['titlekey'] else []
-    hactool_watched(hac, romfs, bsize, 0.3, 0.6, *tk, '-t', 'nca', f'--baseromfs={raw}', f'--exefsdir={exefs}',
-                    f'--romfsdir={romfs}', unca, what='Applying the update')
-    os.remove(unca)
-    os.remove(raw)
+    # The update's RomFS is a patch over the base game's NCA (--basenca; hactool's --baseromfs, over an extracted base
+    # RomFS image, fails on this game: "Failed to read RomFS directory cache"). hactool takes the update's title key
+    # on the command line but finds the base game's only in <home>/.switch/title.keys: both go into a private home
+    # for this one run, deleted after it. Title keys are the player's own (from their tickets), never shown or logged.
+    home = os.path.join(stage, '.home')
+    env = None
+    try:
+        keyed = [t for t in (bt, ut) if t.get('titlekey') and t.get('rights_id')]
+        if keyed:
+            os.makedirs(os.path.join(home, '.switch'), mode=0o700, exist_ok=True)
+            tk_file = os.path.join(home, '.switch', 'title.keys')
+            fd = os.open(tk_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, 'w') as f:
+                for t in keyed:
+                    f.write(f'{t["rights_id"]} = {t["titlekey"]}\n')
+            env = dict(os.environ, HOME=home, USERPROFILE=home)
+        tk = [f'--titlekey={ut["titlekey"]}'] if ut['titlekey'] else []
+        say('step', 'Extracting the game files and applying the update')
+        hactool_watched(hac, romfs, bsize, 0.05, 0.6, *tk, '-t', 'nca', f'--basenca={nca}', f'--exefsdir={exefs}',
+                        f'--romfsdir={romfs}', unca, what='Extracting the game and applying the update', env=env)
+    finally:
+        shutil.rmtree(home, ignore_errors=True)
+        for f in (nca, unca):
+            if os.path.exists(f):
+                os.remove(f)
     if not os.path.isfile(os.path.join(exefs, 'main')) or not os.path.isdir(romfs):
         raise SetupError('DECRYPT', 'The update couldn\'t be decrypted or applied',
                          'prod.keys must hold the keys for the 1.0.1 update (dump them again with a current '

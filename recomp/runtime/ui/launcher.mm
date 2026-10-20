@@ -1168,7 +1168,11 @@ extern "C" void launcher_run(const char *root) {
                 for (int i = 0; i < 3; i++) key += g_steps[i].state * (i == 0 ? 1 : i == 1 ? 5 : 25);
                 pthread_mutex_unlock(&g_lock);
                 double now = SDL_GetTicks() / 1000.0;
-                if (frame >= 30 && (key != last_shot_key || (job == 1 && now - last_shot_t > 30))) {
+                // (a change is shot 3 frames later: cards size themselves to their content a frame late)
+                static int seen_key = -1, seen_frames;
+                if (key != seen_key) seen_key = key, seen_frames = 0;
+                else seen_frames++;
+                if (frame >= 30 && seen_frames >= 3 && (key != last_shot_key || (job == 1 && now - last_shot_t > 30))) {
                     last_shot_key = key, last_shot_t = now;
                     snprintf(shot_path, sizeof shot_path, "%s/launcher_%02d_%s.png", shots, shot_n++,
                              job == 0 ? "choose" : job == 1 ? "running" : job == 3 ? "error" : "done");

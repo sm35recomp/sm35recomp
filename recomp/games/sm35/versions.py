@@ -13,11 +13,11 @@ setup.py, and scripts/check_package.py uses the hashes to make sure no release p
 TITLE = 'Super Mario Bros. 35'
 BASE_TITLE_ID = 0x0100277011F1A000
 UPDATE_TITLE_ID = 0x0100277011F1A800
-# title versions as the titles' metadata gives them (a patch counter: 1.0.1 is the first update), and what they are
-UPDATE_VERSION = 65536  # 0x10000
+# title versions as the titles' metadata gives them (the update's metadata: 1.0.1 is 0x20000), and what they are
+UPDATE_VERSION = 131072  # 0x20000 (checked against the owner's update NSP)
 TITLE_VERSIONS = {
     (BASE_TITLE_ID, 0): '1.0.0',
-    (UPDATE_TITLE_ID, 65536): '1.0.1',
+    (UPDATE_TITLE_ID, 131072): '1.0.1',
 }
 
 # NSO build ids (hex of the 0x20-byte module id, trailing zeros dropped) by version. Only main changed in 1.0.1.
@@ -53,9 +53,8 @@ PROGRAM_NCA_IDS = {
 # subsdk0 is GLSLC (the runtime shader compiler) and subsdk1 the movie library (runtime/hle/movie.c stands in for it)
 EXEFS_FILES = ('main', 'sdk', 'subsdk0', 'subsdk1', 'rtld', 'main.npdm')
 
-# The RomFS is small (about 370 MB, 172 files with the update): what a complete one has at least
+# The RomFS is small (about 370 MB, 172 files with the update): how many files a complete one has at least
 ROMFS_MIN_FILES = 150
-ROMFS_MIN_BYTES = 256 << 20
 
 
 def version_of_build_id(module, build_id):
@@ -68,5 +67,5 @@ def version_of_build_id(module, build_id):
 
 
 def display_version(title_id, v):
-    """A title version by its name ('1.0.1'), or its number for an unknown one ('v131072')."""
+    """A title version by its name ('1.0.1'), or its number for an unknown one ('v196608')."""
     return TITLE_VERSIONS.get((title_id, v), f'v{v}')
