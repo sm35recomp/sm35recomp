@@ -1,6 +1,6 @@
 # Progress and plan
 
-SM35 Recomp is Super Mario Bros. 35 v1.0.1, statically recompiled from the player's own dump. It boots to the main
+SM35 Recomp is Super Mario Bros. 35 v1.0.2, statically recompiled from the player's own dump. It boots to the main
 menu on macOS and the menus work. Gameplay is blocked on the online work: the game needs its online service even
 for Course Practice. Offline it shows Loading and then goes back to the menu. Online play goes through
 [Nextendo Network](https://nextendo.network) only, never Nintendo's servers. Bring-up notes are in

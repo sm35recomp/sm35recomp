@@ -576,10 +576,13 @@ extern "C" int game_mod_toggles(const GameModToggle **out);
 extern "C" void game_mod_toggles_changed(void);
 extern "C" bool launcher_has_settings(void);   // runtime/ui/launcher.mm: the Mods tab's app section (desktop)
 extern "C" bool launcher_settings_rows(void);
+extern "C" bool online_rows_available(void);   // runtime/ui/online_rows.mm: the Online section (backend, Nextendo account)
+extern "C" void online_rows(void);
 static void tab_mods(void) {
     const GameModToggle *t;
     int n = game_mod_toggles(&t);
     opt_begin("##mods", ImGui::GetFontSize() / 34);
+    if (online_rows_available()) online_rows();  // (first: the backend decides what the rest talks to)
     if (n > 0 && t[0].value) opt_section("Mods");
     bool changed = false;
     for (int i = 0; i < n; i++) {
@@ -737,9 +740,10 @@ static void tabs_body(float scale, bool in_game, void (*prelaunch)(float)) {
     static const char *names[] = {"Video", "Audio", "Mods", "", "", "", "", "", "Controls", "Quit"};
     static const int order[] = {8, 0, 1, 2, 9};  // Controls, Video, Audio, Mods, Quit
     const GameModToggle *mods;
-    bool have_mods = game_mod_toggles(&mods) > 0 || launcher_has_settings();
+    bool have_mods = game_mod_toggles(&mods) > 0 || launcher_has_settings() || online_rows_available();
     for (int i : order)  // (Quit: in game only; Mods: when the game has some)
-        if ((i != 9 || !prelaunch) && (i != 2 || have_mods)) tabs[ntabs++] = {names[i], i, true};
+        if ((i != 9 || !prelaunch) && (i != 2 || have_mods))
+            tabs[ntabs++] = {i == 2 && game_mod_toggles(&mods) == 0 && !launcher_has_settings() ? "Online" : names[i], i, true};
     int cur = 0;  // g_tab / g_tab_request hold ids
     for (int i = 0; i < ntabs; i++) if (tabs[i].id == g_tab) cur = i;
     if (!tabs[cur].on) cur = 0;

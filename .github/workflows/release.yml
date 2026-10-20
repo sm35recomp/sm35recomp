@@ -120,6 +120,6 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --draft --verify-tag --title "SM35 Recomp $tag" \
-              --notes "Player packages for $tag: download the one for your system, start it, and point it at your own Super Mario Bros. 35 dump with the 1.0.1 update, plus your prod.keys and firmware (see README: Play it). No game files are included. Not affiliated with Nintendo."
+              --notes "Player packages for $tag: download the one for your system, start it, and point it at your own Super Mario Bros. 35 dump with the 1.0.2 update, plus your prod.keys and firmware (see README: Play it). No game files are included. Not affiliated with Nintendo."
           fi
           gh release upload "$tag" dist/* --clobber

@@ -2,7 +2,7 @@
 
 SM35 Recomp is forked from **SMM2 Recomp** (https://github.com/smm2recomp/smm2recomp, GPL-3.0-or-later): its shared
 runtime, recompiler, packaging and setup screen, retargeted from *Super Mario Maker 2* v3.0.3 to *Super Mario Bros.
-35* v1.0.1 (`games/sm35/`). SMM2's game folder, its mods, its course server and its course-format tools were left
+35* v1.0.2 (`games/sm35/`). SMM2's game folder, its mods, its course server and its course-format tools were left
 behind. SMM2 Recomp itself is a fork of **LAS Recomp**, retargeted from *Link's Awakening* and reorganised toward a
 shared runtime plus per-game glue; ideas (and, where noted, files) come from **SuperMarioWonderRecomp**. Both are
 MIT; their notices are kept next to this file. The sections below describe the LAS fork as SMM2 Recomp made it.

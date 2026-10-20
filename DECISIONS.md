@@ -2,7 +2,7 @@
 
 ## A static recompilation, forked from SMM2 Recomp
 
-SM35 Recomp is a static recompilation of Super Mario Bros. 35 v1.0.1: the game's AArch64 code is translated to C
+SM35 Recomp is a static recompilation of Super Mario Bros. 35 v1.0.2: the game's AArch64 code is translated to C
 ahead of time and compiled for the host, on a native runtime. It is a fork of
 [SMM2 Recomp](https://github.com/smm2recomp/smm2recomp) (itself a fork of LAS Recomp): the runtime, recompiler,
 packaging and setup screen are shared, and SM35 adds only its game folder (`recomp/games/sm35/`). Fixes the game needs

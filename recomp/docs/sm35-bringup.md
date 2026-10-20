@@ -1,11 +1,12 @@
 # SM35 bring-up
 
-What Super Mario Bros. 35 v1.0.1 needed on top of SMM2 Recomp's runtime and recompiler. Names and behaviour only:
+What Super Mario Bros. 35 v1.0.2 needed on top of SMM2 Recomp's runtime and recompiler. Names and behaviour only:
 no game code, no addresses that only make sense with the dump.
 
 ## The game
 
-- Title 0100277011F1A000 (update 0100277011F1A800). The recomp is for **v1.0.1**, the only update: in it only `main`
+- Title 0100277011F1A000 (update 0100277011F1A800). The recomp is for **v1.0.2** (title version 0x20000), the last
+  update and the one Nextendo Network requires: against 1.0.0 only `main`
   changed (build ids and ExeFS hashes in `games/sm35/versions.py`).
 - Engine: Nintendo's **Bezel Engine**. Game logic is Lua (scripts inside `.bea` archives in the RomFS; `boot.lua`
   starts it); physics is PhysX. The RomFS is small (about 370 MB, 172 files with the update: `Archive/`, `Dat/`,

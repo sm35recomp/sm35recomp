@@ -1,4 +1,4 @@
-"""Lay out the player's own Super Mario Bros. 35 v1.0.1 files for the recomp.
+"""Lay out the player's own Super Mario Bros. 35 v1.0.2 files for the recomp.
 
 From extracted folders (`make setup`):
 
@@ -9,7 +9,7 @@ NSP / XCI files themselves, which are extracted with hactool and the player's ow
 
     setup.py --source <folder | .nsp | .xci> [--source ...] [--keys prod.keys] [--hactool PATH] --out <dir>
 
-<out>/exefs: the v1.0.1 main, sdk, rtld and main.npdm (copied; checked against the known v1.0.1 build ids and hashes,
+<out>/exefs: the v1.0.2 main, sdk, rtld and main.npdm (copied; checked against the known v1.0.2 build ids and hashes,
              versions.py)
 <out>/romfs: the base game's RomFS with the update's files over it, as a tree of links (nothing copied;
              runtime/services/fs.c serves it without building an image); extracted from an NSP / XCI: the patched
@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import versions  # noqa: E402
 
 EXEFS_FILES = versions.EXEFS_FILES
-BUILD_IDS = versions.BUILD_IDS['1.0.1']  # (make's setup and older callers)
+BUILD_IDS = versions.BUILD_IDS['1.0.2']  # (make's setup and older callers)
 
 
 class SetupError(Exception):
@@ -85,28 +85,28 @@ def exefs_version(d):
 
 
 def check_exefs(src):
-    """Raises SetupError unless src holds the v1.0.1 ExeFS."""
+    """Raises SetupError unless src holds the v1.0.2 ExeFS."""
     for name in EXEFS_FILES:
         p = os.path.join(src, name)
         if not os.path.isfile(p):
             raise SetupError('MISSING', f'{name} is missing from the ExeFS folder {src}',
-                             'Extract the 1.0.1 update\'s ExeFS (main, sdk, subsdk0, subsdk1, rtld, main.npdm) there.')
+                             'Extract the 1.0.2 update\'s ExeFS (main, sdk, subsdk0, subsdk1, rtld, main.npdm) there.')
     for name in ('main', 'sdk'):
         p = os.path.join(src, name)
         got = build_id(p)
         if got is None:
             raise SetupError('NOT_NSO', f'{p} is not a Switch executable', 'Choose the folder of the extracted ExeFS.')
-        if not got.startswith(versions.BUILD_IDS['1.0.1'][name]):
+        if not got.startswith(versions.BUILD_IDS['1.0.2'][name]):
             ver = versions.version_of_build_id(name, got)
             if ver:
                 raise SetupError('WRONG_VERSION', f'These game files are version {ver}',
-                                 'The recomp needs version 1.0.1: add the 1.0.1 update (its NSP, or its extracted '
+                                 'The recomp needs version 1.0.2: add the 1.0.2 update (its NSP, or its extracted '
                                  'ExeFS and RomFS).')
-            raise SetupError('WRONG_VERSION', f'{name} is not Super Mario Bros. 35 1.0.1 (build id {got[:16]}...)',
-                             'Choose the files of Super Mario Bros. 35 with the 1.0.1 update.')
+            raise SetupError('WRONG_VERSION', f'{name} is not Super Mario Bros. 35 1.0.2 (build id {got[:16]}...)',
+                             'Choose the files of Super Mario Bros. 35 with the 1.0.2 update.')
     for name, want in versions.EXEFS_SHA256.items():
         if sha256(os.path.join(src, name)) != want:
-            raise SetupError('BAD_HASH', f'{name} doesn\'t match the known 1.0.1 file',
+            raise SetupError('BAD_HASH', f'{name} doesn\'t match the known 1.0.2 file',
                              'The file may be damaged or modified (mods, cheats). Extract the update again.')
 
 
@@ -117,14 +117,14 @@ def copy_exefs(src, dst, check_hashes=True):
     for name in EXEFS_FILES:
         p = os.path.join(src, name)
         if not os.path.isfile(p):
-            sys.exit(f'setup: {p} is missing (extract the v1.0.1 update\'s exefs there)')
+            sys.exit(f'setup: {p} is missing (extract the v1.0.2 update\'s exefs there)')
         want = BUILD_IDS.get(name)
         if want:
             got = build_id(p)
             if got is None:
                 sys.exit(f'setup: {p} is not an NSO')
             if not got.startswith(want):
-                sys.exit(f'setup: {p} is not the v1.0.1 {name} (build id {got[:16]}..., want {want[:16]}...)')
+                sys.exit(f'setup: {p} is not the v1.0.2 {name} (build id {got[:16]}..., want {want[:16]}...)')
         q = os.path.join(dst, name)
         if not (os.path.exists(q) and os.path.getsize(q) == os.path.getsize(p)
                 and os.path.getmtime(q) >= os.path.getmtime(p)):
@@ -381,19 +381,19 @@ def extract_containers(files, hac, stage):
         say('found', f)
     if base is None and upd is None:
         raise SetupError('NOT_SMB35', 'No Super Mario Bros. 35 in the chosen files',
-                         'Choose your Super Mario Bros. 35 NSP / XCI and its 1.0.1 update.')
+                         'Choose your Super Mario Bros. 35 NSP / XCI and its 1.0.2 update.')
     if base is None:
         raise SetupError('NO_BASE', 'Only the update was chosen',
                          'The update holds only what changed: also choose the game itself (its NSP or XCI, or its '
                          'extracted RomFS).')
     if upd is not None and upd[1]['version'] != versions.UPDATE_VERSION:
         v = versions.display_version(versions.UPDATE_TITLE_ID, upd[1]['version'])
-        raise SetupError('WRONG_VERSION', f'The update is {v}, not 1.0.1',
-                         'The recomp needs the 1.0.1 update: choose its NSP.')
+        raise SetupError('WRONG_VERSION', f'The update is {v}, not 1.0.2',
+                         'The recomp needs the 1.0.2 update: choose its NSP.')
     if upd is None:
         raise SetupError('WRONG_VERSION', f'These game files are version '
                          f'{versions.display_version(versions.BASE_TITLE_ID, base[1]["version"])}',
-                         'The recomp needs version 1.0.1: also choose the 1.0.1 update\'s NSP.')
+                         'The recomp needs version 1.0.2: also choose the 1.0.2 update\'s NSP.')
     os.makedirs(stage, exist_ok=True)
     bpath, bt = base
     bname, boff, bsize = bt['program']
@@ -436,7 +436,7 @@ def extract_containers(files, hac, stage):
                 os.remove(f)
     if not os.path.isfile(os.path.join(exefs, 'main')) or not os.path.isdir(romfs):
         raise SetupError('DECRYPT', 'The update couldn\'t be decrypted or applied',
-                         'prod.keys must hold the keys for the 1.0.1 update (dump them again with a current '
+                         'prod.keys must hold the keys for the 1.0.2 update (dump them again with a current '
                          'Lockpick_RCM), and the update NSP must be complete, with its ticket.')
     return {'exefs': exefs, 'romfs': romfs}
 
@@ -494,28 +494,28 @@ def scan_sources(sources):
 def setup_from_sources(sources, out, keys, hactool, check_hashes=True):
     say('step', 'Looking at the game files')
     exefs, romfs, containers = scan_sources(sources)
-    good = [d for d in exefs if exefs_version(d) == '1.0.1']
+    good = [d for d in exefs if exefs_version(d) == '1.0.2']
     stage = os.path.join(out, '.extract')
     extracted = None
     if containers and not (good and romfs):
         hac = Hactool(hactool, keys)
         extracted = extract_containers(containers, hac, stage)
         exefs.append(extracted['exefs'])
-        good = [d for d in exefs if exefs_version(d) == '1.0.1']
+        good = [d for d in exefs if exefs_version(d) == '1.0.2']
     if not good:
         vers = sorted({exefs_version(d) or 'unknown' for d in exefs})
         if exefs and vers != ['unknown']:
             raise SetupError('WRONG_VERSION', f'These game files are version {", ".join(vers)}',
-                             'The recomp needs version 1.0.1: add the 1.0.1 update (its NSP, or its extracted ExeFS '
+                             'The recomp needs version 1.0.2: add the 1.0.2 update (its NSP, or its extracted ExeFS '
                              'and RomFS).')
         raise SetupError('NO_EXEFS', 'No game code (ExeFS) found in the chosen files',
-                         'Choose the game\'s NSP / XCI with its 1.0.1 update NSP, or the folders of the extracted '
+                         'Choose the game\'s NSP / XCI with its 1.0.2 update NSP, or the folders of the extracted '
                          'ExeFS (main, sdk, subsdk0, subsdk1, rtld, main.npdm) and RomFS.')
     say('step', 'Checking the game version')
     say('progress', '0.62')
     ex = good[0]
     copy_exefs(ex, os.path.join(out, 'exefs'), check_hashes)
-    say('found', 'ExeFS: Super Mario Bros. 35 1.0.1 (build ids and hashes match)')
+    say('found', 'ExeFS: Super Mario Bros. 35 1.0.2 (build ids and hashes match)')
 
     say('step', 'Setting up the game data')
     dst = os.path.join(out, 'romfs')
@@ -529,7 +529,7 @@ def setup_from_sources(sources, out, keys, hactool, check_hashes=True):
         if not romfs:
             raise SetupError('NO_ROMFS', 'No game data (RomFS) found in the chosen files',
                              'Also choose the folder of the extracted RomFS (it holds Archive, Dat, stream).')
-        # the update's RomFS (next to the 1.0.1 ExeFS) goes last, over the base game's
+        # the update's RomFS (next to the 1.0.2 ExeFS) goes last, over the base game's
         parent = os.path.dirname(os.path.realpath(ex))
         layers = sorted(romfs, key=lambda d: os.path.dirname(os.path.realpath(d)) == parent)
         counts = {'linked': 0, 'replaced': 0, 'same': 0}
@@ -543,7 +543,7 @@ def setup_from_sources(sources, out, keys, hactool, check_hashes=True):
     say('found', f'RomFS: {n} files')
     with open(os.path.join(out, 'setup.json'), 'w', encoding='utf-8') as f:
         # (sources as given: the launcher compares them with what the player chose)
-        json.dump({'version': '1.0.1', 'sources': list(sources), 'exefs': os.path.abspath(ex),
+        json.dump({'version': '1.0.2', 'sources': list(sources), 'exefs': os.path.abspath(ex),
                    'romfs': [os.path.abspath(d) for d in layers] if not extracted else ['extracted'],
                    'build_ids': {m: build_id(os.path.join(out, 'exefs', m)) for m in ('main', 'sdk')},
                    'time': time.strftime('%Y-%m-%dT%H:%M:%S')}, f, indent=1, ensure_ascii=False)

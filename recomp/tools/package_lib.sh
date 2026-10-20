@@ -85,18 +85,18 @@ write_readme() {
     cat > "$f" <<EOF
 $GAME_TITLE $ver ($target)
 
-Super Mario Bros. 35 v1.0.1, recompiled for your computer from YOUR OWN game. Nothing of the game is in this
+Super Mario Bros. 35 v1.0.2, recompiled for your computer from YOUR OWN game. Nothing of the game is in this
 download: you bring your dump, and the setup screen prepares everything from it, on your machine. This project is
 not affiliated with or endorsed by Nintendo.
 
 1. Start $run.
 2. The setup screen asks for:
-   - your Super Mario Bros. 35 with the 1.0.1 update: the game's NSP or XCI plus the update's NSP, or folders with
+   - your Super Mario Bros. 35 with the 1.0.2 update: the game's NSP or XCI plus the update's NSP, or folders with
      their extracted ExeFS and RomFS (e.g. an emulator's "Extract RomFS / ExeFS" of the updated game);
    - your console's prod.keys and firmware (the folder of its system .nca files, e.g. Ryujinx's
      bis/system/Contents/registered): the game's fonts come from there. They are read where they are, never copied;
      key values are never shown or logged.
-3. Press "Set up and play". The first time it checks your files against the known 1.0.1 version, extracts them,
+3. Press "Set up and play". The first time it checks your files against the known 1.0.2 version, extracts them,
    copies the fonts and recompiles the game code (a few minutes to half an hour), then the game starts.
    Later starts go straight to the game. The overlay menu (F1 / Esc) > Mods > Game files brings the setup back.
 
