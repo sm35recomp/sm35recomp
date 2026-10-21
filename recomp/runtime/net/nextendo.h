@@ -28,6 +28,10 @@ bool nextendo_prepare_game_login(int timeout_ms);
 uint64_t nextendo_pid(void);
 bool nextendo_username(char *out, size_t cap);
 size_t nextendo_nex_token(char *out, size_t cap);  // the length (0: none)
+// Why this account's online login is refused (GET /api/online-status with the game token; blocks up to timeout_ms):
+// true and *allow / reason ("unknown", "disabled", "unverified", "discord_unlinked", "elsewhere"; "" when allowed),
+// false when there is no answer
+bool nextendo_online_status(int timeout_ms, bool *allow, char *reason, size_t cap);
 
 // RFC 7636 S256: base64url(SHA-256(verifier)) without padding
 void nx_pkce_challenge(const char *verifier, char out[44]);

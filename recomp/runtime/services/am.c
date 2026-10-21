@@ -4,6 +4,8 @@
 
 #include "../hle.h"
 #include "../ipc.h"
+#include "../net/netcfg.h"
+#include "../net/nextendo.h"
 #include "../settings.h"
 
 #define AM_NO_MESSAGE MAKE_RESULT(128, 3)
@@ -153,8 +155,34 @@ static Service *new_am_storage(const void *data, uint64_t size) {
 
 typedef struct { uint32_t id; bool started; } AmApplet;
 
-static void error_notice(const uint8_t *a, uint64_t n) {
+// The notice, with Nextendo's reason when the backend is Nextendo and it refuses this account (its own thread: the
+// question goes over the network)
+static void *explain_thread(void *arg) {
     extern void menu_notice(const char *text, double seconds);
+    char *t = arg, full[900], reason[64] = "";
+    bool allow = true;
+    const char *why = NULL;
+    if (net_backend() == NET_BACKEND_NEXTENDO && nextendo_online_status(5000, &allow, reason, sizeof reason) && !allow) {
+        why = !strcmp(reason, "unverified") ? "Nextendo Network refuses this account online: its e-mail address isn't "
+                                              "verified yet (see the e-mail from Nextendo, or nextendo.network)."
+            : !strcmp(reason, "discord_unlinked") ? "Nextendo Network refuses this account online: it needs a linked "
+                                                    "Discord account (nextendo.network, your account page)."
+            : !strcmp(reason, "elsewhere") ? "Nextendo Network refuses this account online: it is playing on another "
+                                             "device right now."
+            : !strcmp(reason, "disabled") ? "Nextendo Network refuses this account online: the account is disabled."
+            : !strcmp(reason, "unknown") ? "Nextendo Network doesn't know this account: sign out and in again (menu, Online)."
+            : NULL;
+        if (!why) why = "Nextendo Network refuses this account online.";
+    }
+    if (why) snprintf(full, sizeof full, "%s %s", t, why);
+    else snprintf(full, sizeof full, "%s If it's an online error: check that you're online and that your Nextendo account "
+                  "can play (a verified e-mail on nextendo.network).", t);
+    menu_notice(full, 12);
+    free(t);
+    return NULL;
+}
+
+static void error_notice(const uint8_t *a, uint64_t n) {
     char t[600] = "";
     if (n >= 20 && a[0] == 0) {
         uint32_t module = *(const uint32_t *)(a + 8), desc = *(const uint32_t *)(a + 12), res = *(const uint32_t *)(a + 16);
@@ -168,10 +196,10 @@ static void error_notice(const uint8_t *a, uint64_t n) {
         snprintf(t, sizeof t, "The game reports an error (type %u).", n ? a[0] : 0);
     }
     LOG("[am] error applet: %s\n", t);
-    char full[800];
-    snprintf(full, sizeof full, "%s If it's an online error: check that you're online and that your Nextendo account "
-             "can play (a verified e-mail on nextendo.network).", t);
-    menu_notice(full, 10);
+    pthread_t th;
+    char *copy = strdup(t);
+    if (pthread_create(&th, NULL, explain_thread, copy) == 0) pthread_detach(th);
+    else free(copy);
 }
 
 static void applet_accessor(Service *s, IpcReq *req, IpcResp *resp) {

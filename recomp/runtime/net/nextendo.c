@@ -25,6 +25,7 @@
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/md.h"
+#include "mbedtls/platform_util.h"
 
 #include "../game.h"
 #include "../hle.h"
@@ -407,6 +408,27 @@ size_t nextendo_nex_token(char *out, size_t cap) {
     else n = 0;
     pthread_mutex_unlock(&lock);
     return n;
+}
+
+bool nextendo_online_status(int timeout_ms, bool *allow, char *reason, size_t cap) {
+    char tok[1200], url[300], hdr[1300];
+    if (!nextendo_nex_token(tok, sizeof tok)) return false;
+    snprintf(hdr, sizeof hdr, "Authorization: Bearer %s\r\nAccept: application/json\r\n", tok);
+    mbedtls_platform_zeroize(tok, sizeof tok);
+    snprintf(url, sizeof url, "%s/api/online-status", api_base());
+    HttpResponse r;
+    int st = http_request("GET", url, hdr, NULL, 0, timeout_ms, &r);
+    mbedtls_platform_zeroize(hdr, sizeof hdr);
+    bool ok = st == 200;
+    if (ok) {
+        Json *j = json_parse(r.body ? r.body : "", r.len);
+        *allow = json_bool(json_get(j, "allow"), false);
+        snprintf(reason, cap, "%s", json_str(json_get(j, "reason"), ""));
+        json_free(j);
+        LOG("[nextendo] online status: %s%s%s\n", *allow ? "allowed" : "refused", reason[0] ? ": " : "", reason);
+    }
+    http_free(&r);
+    return ok;
 }
 
 // ---- sign-in ----
