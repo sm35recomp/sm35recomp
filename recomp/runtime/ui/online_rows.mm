@@ -58,7 +58,7 @@ extern "C" void online_rows(void) {
     }
     static char d[700];
     snprintf(d, sizeof d, "%s\n\nTakes effect at the next start.", desc);
-    if (m > 0 && opt_choice("Online backend", &sel, names, m, 0, d)) net_backend_select((NetBackend)ids[sel]);
+    if (m > 0 && opt_choice("Service", &sel, names, m, 0, d)) net_backend_select((NetBackend)ids[sel]);
 
     NxStatus st;
     nextendo_status(&st);

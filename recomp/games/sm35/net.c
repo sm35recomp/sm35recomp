@@ -67,7 +67,9 @@ void game_net_config_set(const char *key, const char *val) {
 
 int game_net_default_backend(void) { return NET_BACKEND_NEXTENDO; }
 
-const char *game_net_backend_label(int b) { return b == NET_BACKEND_OURS ? "Offline" : NULL; }
+const char *game_net_backend_label(int b) {  // (short: the row shows "Nextendo (sign in)" when signed out)
+    return b == NET_BACKEND_OURS ? "Offline" : b == NET_BACKEND_NEXTENDO ? "Nextendo" : NULL;
+}
 
 const char *game_net_backend_desc(int b) {
     switch (b) {
