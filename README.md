@@ -15,8 +15,8 @@ It is a fork of [SMM2 Recomp](https://github.com/smm2recomp/smm2recomp), which s
 
 > **Status: early, and online again.** The game's online service comes from [Nextendo Network](https://nextendo.network),
 > a community server (never Nintendo's). Signed in to Nextendo, Course Practice plays, Special Battle is back, and
-> 35-Player Battle matchmaking runs (a full 35-player match is still to be tried). Tested on macOS and on an iPad. See
-> [PROGRESS.md](PROGRESS.md).
+> 35-Player Battles play through to the final ranking (tested with two players, a Mac and an iPad). Two players on the
+> same home internet connection can't share a match yet. See [PROGRESS.md](PROGRESS.md).
 
 ## Screenshots
 

@@ -84,7 +84,7 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 7. ⬜ Performance: steady 60 fps in a full 35-player scene; the first-play shader stutter (prefetch and warm-up);
    memory use.
 
-## Phase 3: 35-player battles and Special Battle 🔄
+## Phase 3: 35-player battles and Special Battle 🔄 (two-player matches play)
 
 1. ✅ Matchmaking (2026-10-21): the Matching screen, AutoMatchmake (MatchmakeExtension 40), the Eagle handoff
    (Notifications type 200000: `wss://51.178.29.194:30001/<gid>` and a token), the referee's `participants_cnt` /
@@ -100,11 +100,13 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      Switch uses Linux's (EINPROGRESS 115: the game never saw its non-blocking connect as pending and redialled every
      frame); `Fcntl` O_NONBLOCK is 0x800.
    - ✅ Both devices joined relay room 348 and got each other's player record.
-   - 🔄 Then both crashed on the relay's first message: the handler's 25-case switch (main+0xb500) had been cut up by
-     gen.py (an ADR that is a jump table's base, 8 instructions before its `br`, taken for a function start). Fixed
-     (96 false starts gone; Course Practice re-tested); a two-device match is next. `RECOMP_BSD_TRACE=1` logs every
-     socket call, `RECOMP_NET_HEX=<file>` dumps every TLS payload.
-3. ⬜ A full match: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
+   - ✅ Then both crashed on the relay's first message: the handler's 25-case switch (main+0xb500) had been cut up
+     by gen.py (an ADR that is a jump table's base, 8 instructions before its `br`, taken for a function start).
+     Fixed: 96 false starts gone; Course Practice re-tested. `RECOMP_BSD_TRACE=1` logs every socket call,
+     `RECOMP_NET_HEX=<file>` dumps every TLS payload.
+   - ✅ **A two-player match played through** (2026-10-21, relay room 349, Mac + iPad build 31, released as v0.2.1):
+     course 1-1, both players, the Ranking screen with the same result on both (coins 200 / 180), Rematch offered.
+3. 🔄 A full match: ✅ start to the Ranking screen with two players. ⬜ A longer one by hand: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
    and XP awarded.
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
 5. ⬜ Robustness: latency and packet loss (the SDK's own network emulator can help), a reconnect after a drop, the
