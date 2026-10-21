@@ -62,6 +62,11 @@ extern "C" void online_rows(void) {
 
     NxStatus st;
     nextendo_status(&st);
+    // a sign-in that has just ended well chooses Nextendo (the player signed in to play there)
+    static NxState was = NX_SIGNED_OUT;
+    if (st.state == NX_SIGNED_IN && was == NX_WAITING_BROWSER && net_backend_setting() != NET_BACKEND_NEXTENDO)
+        net_backend_select(NET_BACKEND_NEXTENDO);
+    was = st.state;
     const char *val = "Sign in";
     if (st.state == NX_WAITING_BROWSER) val = "Waiting for the browser...";
     else if (st.state == NX_SIGNED_IN) val = st.username[0] ? st.username : "Signed in";
