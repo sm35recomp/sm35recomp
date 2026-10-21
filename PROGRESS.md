@@ -24,6 +24,12 @@ never Nintendo's servers. Bring-up notes are in
   on real hardware. Their reports arrive as GitHub Issues (README: Reporting problems lists the logs).
 - **Next, when work resumes** (in order):
   1. Triage testers' issues (Windows: `setjmp`/`longjmp` across recompiled frames under MinGW's SEH is unverified).
+     Open (2026-10-21): a Linux tester on v0.2.2 got "Reading Super Mario Bros. 35 [...][v0].nsp failed: no output":
+     hactool stopped without a word while extracting the base game's meta NCA (not the update's BKTR step). Not
+     reproduced: v0.2.2 and v0.4.0's Linux setup both work in Docker (Debian 13, Ubuntu 22.04/24.04, x86-64) on the
+     owner's NSPs and keys, including the tester's file name; missing keys and truncated files give other errors.
+     Wanted: their setup.log from v0.4.0 or later (it logs hactool's exit code; a crash is now named, e.g.
+     "segmentation fault"). SMM2's testers hit a hactool crash in its BKTR code (mario-maker-b5): compare.
   2. Rumble: the game plays HD-rumble files (`nn::hid::VibrationPlayer`, `SendVibrationValue`, hid cmd 201); the
      runtime accepts and drops them. Map to `SDL_RumbleGamepad` (SMM2 has no rumble either).
   3. Phase 3 leftovers: a drop mid-match (`RECOMP_NET_DROP_AFTER`), background / sleep on iOS.

@@ -247,6 +247,12 @@ HACTOOL_CRASHES = {0xC0000005: 'it crashed: access violation', 0xC00000FD: 'it c
                    0xC0000409: 'it crashed: buffer overrun', 0xC0000374: 'it crashed: heap corruption'}
 
 
+# Linux / macOS: a program killed by a signal (Python reports it as a negative exit code)
+HACTOOL_SIGNALS = {11: 'it crashed: segmentation fault', 6: 'it crashed: abort', 7: 'it crashed: bus error (the file '
+                   'or its drive went away while it was read?)', 4: 'it crashed: illegal instruction (a CPU it '
+                   'wasn\'t built for?)', 9: 'it was killed (out of memory?)', 8: 'it crashed: arithmetic error'}
+
+
 class Hactool:
     def __init__(self, exe, keys):
         if not exe or not os.path.isfile(exe):
@@ -269,7 +275,8 @@ class Hactool:
             if not tail:
                 # hactool said nothing at all: it didn't start or it crashed, which isn't the keys' fault
                 code = r.returncode & 0xFFFFFFFF
-                why = HACTOOL_CRASHES.get(code, f'exit code {r.returncode} ({code:#x})')
+                why = (HACTOOL_SIGNALS.get(-r.returncode, f'it was stopped by signal {-r.returncode}')
+                       if r.returncode < 0 else HACTOOL_CRASHES.get(code, f'exit code {r.returncode} ({code:#x})'))
                 raise SetupError('HACTOOL_CRASH', f'{what} failed: hactool stopped without a message ({why})',
                                  'Please report this with the setup log. Meanwhile you can extract the game '
                                  'yourself (an emulator\'s "Extract ExeFS / RomFS" of the updated game) and choose '
