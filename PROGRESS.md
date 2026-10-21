@@ -83,17 +83,24 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 
 ## Phase 3: 35-player battles and Special Battle 🔄
 
-1. 🔄 Matchmaking: ✅ works on Nextendo (2026-10-21: the Matching screen; AutoMatchmake, MatchmakeExtension 40, answers).
-   Two accounts (Mac + the owner's iPad, a second account with a verified e-mail and a linked Discord: Nextendo refuses
-   accounts without one, `discord_unlinked`) were put in the same gathering (relay room 338 on both), yet no match
-   starts: the game holds the Eagle handoff (Notifications, type 200000: `wss://51.178.29.194:30001/<gid>` and a
-   token) without connecting, the counter runs down and starts over, and the referee's `participants_cnt` messages
-   keep coming. In a later run neither device got a handoff at all (only pings after AutoMatchmake). Open: what the
-   game waits for before connecting to Eagle (the referee's start, enough participants, a NAT report: our station URL
-   says `natf=0;natm=0`, the game never ran a NAT check). `RECOMP_NET_HEX=<file>` dumps the NEX traffic; a decoder
-   (WebSocket, PRUDP lite, RMC) is easy to rebuild. Nextendo's server logs would settle it.
-2. ⬜ The in-match relay (`eagle`, the game's real-time transport): find what it connects to (a host from the NEX
-   session, TCP, WebSocket or UDP), its TLS, and its framing; route it to Nextendo's relay.
+1. ✅ Matchmaking (2026-10-21): the Matching screen, AutoMatchmake (MatchmakeExtension 40), the Eagle handoff
+   (Notifications type 200000: `wss://51.178.29.194:30001/<gid>` and a token), the referee's `participants_cnt` /
+   `close_participation`, and the round start. Tested with two accounts: the Mac and the owner's iPad (a second
+   account with a verified e-mail and a linked Discord; Nextendo refuses accounts without one, `discord_unlinked`).
+   - **Two players on one home connection don't work**: the game's secure NEX connection carries no Kerberos ticket
+     (an empty CONNECT), so Nextendo identifies the player by address alone and gives both devices one identity;
+     only one gets the handoff. With the iPad on another connection (an exit node), both got it. The ticket itself
+     is fine: it decrypts with the raw source key Nextendo sends (re-encrypting it with NEX's classic derived key
+     makes the game fail with 2306-0304). Why the game then sends no ticket is open; worth raising with Nextendo.
+2. 🔄 The relay (`eagle`): TLS + WebSocket to `51.178.29.194:30001/<gid>`, the token, then binary frames.
+   - ✅ Fixed: getaddrinfo's port was byte-swapped (dialled 12661); the socket errno numbers were FreeBSD's where the
+     Switch uses Linux's (EINPROGRESS 115: the game never saw its non-blocking connect as pending and redialled every
+     frame); `Fcntl` O_NONBLOCK is 0x800.
+   - ✅ Both devices joined relay room 348 and got each other's player record.
+   - 🔄 Then both crashed on the relay's first message: the handler's 25-case switch (main+0xb500) had been cut up by
+     gen.py (an ADR that is a jump table's base, 8 instructions before its `br`, taken for a function start). Fixed
+     (96 false starts gone; Course Practice re-tested); a two-device match is next. `RECOMP_BSD_TRACE=1` logs every
+     socket call, `RECOMP_NET_HEX=<file>` dumps every TLS payload.
 3. ⬜ A full match: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
    and XP awarded.
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
@@ -149,8 +156,11 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 
 ## Phase 6: Keeping the two recomps in step ⬜
 
-1. ⬜ Port the jump-table fix (an ADR feeding a nearby `br` is not a function start) to SMM2 Recomp's `tools/gen.py`.
-   It changes SMM2's generated code, so it needs SMM2's own re-test.
+1. ⬜ Port the jump-table fixes (an ADR feeding a nearby `br` is not a function start; also when the `br` is 8+
+   instructions on, as in SM35's relay handler) to SMM2 Recomp's `tools/gen.py`. It changes SMM2's generated code, so
+   it needs SMM2's own re-test.
+   - ⬜ The socket errno numbers (Linux, not FreeBSD) and `Fcntl` O_NONBLOCK 0x800 (`net/hostsock.h`, `services/bsd*.c`):
+     SMM2's online code may depend on them too.
 2. ⬜ Port `setjmp`/`longjmp`, the `irs` service, the touch and `acc` fixes, and the `svcBreak`/`RECOMP_LOG_IPC`
    diagnostics to SMM2 (harmless there).
 3. ⬜ Bring SMM2's runtime fixes over as they land. In the long run, a shared runtime both repos use, to replace the
