@@ -145,7 +145,11 @@ void rt_paths_init(void) {
                  "next to the program. Move the \"" GAME_TITLE "\" folder somewhere you can write to (e.g. Documents or "
                  "Desktop, not Program Files) and start it again.", root);
 #else
-        snprintf(msg, sizeof msg, GAME_TITLE " can't write to its data folder:\n%s", root);
+        if (is_link(root) && !exists(root))  // a link to a folder on a disk that isn't there (an external drive)
+            snprintf(msg, sizeof msg, GAME_TITLE "'s data folder is a link to a folder that isn't there:\n%s\n\n"
+                     "If it is on an external drive, connect the drive and start " GAME_TITLE " again.", root);
+        else
+            snprintf(msg, sizeof msg, GAME_TITLE " can't write to its data folder:\n%s", root);
 #endif
         fail(msg);
     }

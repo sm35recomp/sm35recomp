@@ -240,6 +240,13 @@ def copy_range(src, off, size, dst, progress=None):
                 progress(size - left)
 
 
+# Windows' status codes for a program that never got going or crashed (hactool printing nothing)
+HACTOOL_CRASHES = {0xC0000005: 'it crashed: access violation', 0xC00000FD: 'it crashed: stack overflow',
+                   0xC0000135: 'a DLL it needs is missing', 0xC0000139: 'a DLL it needs is the wrong version',
+                   0xC0000142: 'it could not start', 0xC000007B: 'it is built for another kind of Windows',
+                   0xC0000409: 'it crashed: buffer overrun', 0xC0000374: 'it crashed: heap corruption'}
+
+
 class Hactool:
     def __init__(self, exe, keys):
         if not exe or not os.path.isfile(exe):
@@ -258,7 +265,16 @@ class Hactool:
         if r.returncode != 0 or 'Invalid NCA header' in out or 'Failed to open' in out:
             # (hactool's own wording, masked: never key values)
             tail = [ln for ln in masked(out).splitlines() if ln.strip()][-3:]
-            raise SetupError('HACTOOL', f'{what} failed: {" / ".join(tail) or "no output"}',
+            say('log', f'hactool {" ".join(masked(a) for a in args)}: exit code {r.returncode}')
+            if not tail:
+                # hactool said nothing at all: it didn't start or it crashed, which isn't the keys' fault
+                code = r.returncode & 0xFFFFFFFF
+                why = HACTOOL_CRASHES.get(code, f'exit code {r.returncode} ({code:#x})')
+                raise SetupError('HACTOOL_CRASH', f'{what} failed: hactool stopped without a message ({why})',
+                                 'Please report this with the setup log. Meanwhile you can extract the game '
+                                 'yourself (an emulator\'s "Extract ExeFS / RomFS" of the updated game) and choose '
+                                 'the folders instead of the NSP / XCI.')
+            raise SetupError('HACTOOL', f'{what} failed: {" / ".join(tail)}',
                              'Check that prod.keys is from your console and has the keys for this game\'s version '
                              '(dump them again with a current Lockpick_RCM), and that the file is complete.')
         return out

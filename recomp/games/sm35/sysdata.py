@@ -16,6 +16,9 @@ import subprocess
 import sys
 import tempfile
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from setup import HACTOOL_CRASHES, masked  # noqa: E402  (setup.py: the crash codes, output without key values)
+
 FONT_TITLES = {
     '0100000000000810',  # NintendoExtension (button glyphs)
     '0100000000000811',  # Standard (Latin + Japanese)
@@ -45,12 +48,28 @@ def nca_path(entry):
     return os.path.join(entry, '00') if os.path.isdir(entry) else entry
 
 
+FAILS = []  # (exit code, output) of the NCAs hactool couldn't read, for the error
+
+
 def title_id(hactool, keys, nca):
-    out = run([hactool, '-k', keys, '--disablekeywarns', '-t', 'nca', nca]).stdout
-    for line in out.splitlines():
+    r = run([hactool, '-k', keys, '--disablekeywarns', '-t', 'nca', nca])
+    for line in r.stdout.splitlines():
         if line.strip().startswith('Title ID:'):
             return line.split(':', 1)[1].strip().lower()
+    FAILS.append((r.returncode, r.stdout + r.stderr))
     return None
+
+
+def why_none():
+    """What hactool said about the NCAs it couldn't read: a crash (no output, an exit code), or its last words."""
+    if not FAILS:
+        return ''
+    silent = [rc for rc, out in FAILS if not out.strip()]
+    if len(silent) == len(FAILS):
+        code = silent[0] & 0xFFFFFFFF
+        return f' (hactool stopped without a message: {HACTOOL_CRASHES.get(code, f"exit code {silent[0]} ({code:#x})")})'
+    tail = [ln for rc, out in FAILS for ln in masked(out).splitlines() if ln.strip()][-2:]
+    return f' (hactool: {" / ".join(tail)})' if tail else ''
 
 
 def main():
@@ -107,9 +126,15 @@ def main():
           + (f' (not in this firmware: {", ".join(missing)})' if missing else ''))
     print('@progress 1', flush=True)
     if not found:
-        fail('KEYS', 'No system titles could be read from the firmware',
+        why = why_none()
+        print(f'sysdata: {len(FAILS)} NCAs unreadable{why}', flush=True)
+        if 'without a message' in why:
+            fail('HACTOOL_CRASH', 'The firmware couldn\'t be read' + why,
+                 'Please report this with the setup log. hactool, which comes with this program, didn\'t run '
+                 'properly on this computer.')
+        fail('KEYS', 'No system titles could be read from the firmware' + why,
              'prod.keys must be your console\'s and hold the keys for that firmware version (dump them again with a '
-             'current Lockpick_RCM after updating).')
+             'current Lockpick_RCM after updating). A newer firmware than this program\'s hactool knows can also do this.')
     if 'nintendo_udsg-r_std_003.bfttf' not in os.listdir(fonts):
         fail('FONTS_MISSING', 'The console\'s shared fonts were not found in the firmware',
              'Choose the folder of your console\'s system NCAs (with the shared font titles 0100000000000810-814).')
