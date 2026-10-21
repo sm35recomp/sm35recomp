@@ -180,7 +180,7 @@ OSFLAGS  := -Wno-format -Wno-nullability-completeness -fPIC
 RT_SRC   := $(filter-out runtime/gamebuild.c,$(RT_SRC))
 GENFLAGS += -fPIC
 LDFLAGS  := -shared -Wl,-soname,libmain.so -Wl,--no-undefined -Wl,-z,max-page-size=16384 -L$(SDL)/lib -lSDL3 -lshaderc_combined -lvulkan \
-            -landroid -llog -lm -ldl -static-libstdc++
+            -landroid -lnativewindow -llog -lm -ldl -static-libstdc++
 BACKEND_SRC := $(wildcard runtime/nvn/vulkan/*.c) $(wildcard runtime/nvn/vulkan/*.cpp)
 BACKEND_OBJ := $(patsubst runtime/%.cpp,$(B)/rt/%.o,$(patsubst runtime/%.c,$(B)/rt/%.o,$(BACKEND_SRC)))
 IMGUI_OBJ += $(B)/imgui/imgui_impl_vulkan.o
@@ -273,7 +273,7 @@ $(B)/rt/%.o: runtime/%.c $(RT_HDRS)
 
 $(B)/mbedtls/%.o: $(MBEDTLS)/library/%.c runtime/net/mbedtls_user_config.h
 	@mkdir -p $(dir $@)
-	@$(CC) -O2 -g $(MBEDTLS_FLAGS) $(filter -D%,$(OSFLAGS)) -c $< -o $@
+	@$(CC) -O2 -g $(MBEDTLS_FLAGS) $(filter -D% -fPIC,$(OSFLAGS)) -c $< -o $@
 $(B)/rt/services/ssl.o: RTFLAGS += $(MBEDTLS_FLAGS)
 $(B)/rt/services/ssl.o: runtime/net/mbedtls_user_config.h
 $(B)/rt/net/token.o: RTFLAGS += $(MBEDTLS_FLAGS)

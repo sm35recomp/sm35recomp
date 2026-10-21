@@ -495,6 +495,13 @@ static void fill_state(Cpu *c, uint8_t *s, uint32_t id, bool single) {
     *(int64_t *)s = ++sampling;
     static int nlog;
     if (nlog < 6 && (sampling % 600) == 1) { nlog++; LOG("[input] GetNpadState id %#x lr %llx\n", id, c->x[30]); }
+    {   // each new caller once (id, return address): which pads the game reads, and from where
+        static uint64_t seen[32]; static int nseen;
+        uint64_t key = c->x[30] ^ ((uint64_t)id << 56) ^ (single ? 1ull << 63 : 0);
+        int k = 0;
+        while (k < nseen && seen[k] != key) k++;
+        if (k == nseen && nseen < 32) { seen[nseen++] = key; LOG("[input] new reader: %s id %#x lr %llx\n", single ? "GetNpadState" : "GetNpadStates", id, (unsigned long long)c->x[30]); }
+    }
     if (id != 0) return;  // docked: only player 1 (FullKey); Handheld stays disconnected
     if (padscript_active()) {  // a scripted replay (RECOMP_PAD_SCRIPT): the script's buttons alone, sticks at rest
         *(uint64_t *)(s + 8) = padscript_buttons();
