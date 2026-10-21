@@ -577,6 +577,9 @@ static void fill_state(Cpu *c, uint8_t *s, uint32_t id, bool single) {
     if (ry > 16000) b |= 1ull << 21;
     if (rx > 16000) b |= 1ull << 22;
     if (ry < -16000) b |= 1ull << 23;
+    // a game that moves by the d-pad alone (game_stick_as_dpad): the left stick presses it too, 8-way
+    extern bool game_stick_as_dpad(void);
+    if (game_stick_as_dpad()) b |= (b >> 16 & 1) << BTN_LEFT | (b >> 17 & 1) << BTN_UP | (b >> 18 & 1) << BTN_RIGHT | (b >> 19 & 1) << BTN_DOWN;
     {   // the pause menu's companion slot (runtime/hle/pets.c) takes the d-pad / sticks / A while the cursor is on it
         extern uint64_t pets_menu_input(uint64_t b, int32_t st[4]);
         int32_t st[4] = {lx, ly, rx, ry};

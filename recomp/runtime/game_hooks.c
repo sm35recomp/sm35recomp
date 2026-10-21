@@ -51,6 +51,8 @@ WEAK const uint8_t *game_overlay_image(int *w, int *h, int *full, uint64_t *seq)
 }
 WEAK bool game_overlay_captured(void) { return false; }
 WEAK uint64_t game_input_mask(void) { return ~0ull; }
+// the left stick also presses the d-pad (runtime/hle/input.c): a game that reads only the d-pad for movement
+WEAK bool game_stick_as_dpad(void) { return false; }
 // the game's mixed audio (interleaved stereo float) just before it is played: a host screen's sounds go in here
 WEAK void game_audio_mix(float *stereo, int n, int rate) { (void)stereo, (void)n, (void)rate; }  // (the player's buttons a host screen keeps from the game)
 
