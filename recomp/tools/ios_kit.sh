@@ -16,6 +16,8 @@
 # The app needs two entitlements in its provisioning profile: extended virtual addressing (the game's memory window)
 # and the increased memory limit. tools/ios_profile.sh asks Xcode for a profile that has them; an account that
 # can't get them makes an app that installs but stops at start ("guest memory not reserved").
+# A paid Apple Developer account is known to work. A free account is untested: its apps expire after 7 days, and it
+# may not get those entitlements. Reports welcome (GitHub Issues).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TEAM= BUNDLE= IDENTITY=

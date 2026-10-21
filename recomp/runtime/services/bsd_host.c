@@ -564,6 +564,29 @@ static void do_bind(BsdSock *s, int fd, IpcReq *req, IpcResp *resp) {
     result(resp, 0, 0);
 }
 
+// RECOMP_NET_DROP_AFTER=<seconds> (test): that long after the game first connects to Nextendo's game server, every TCP
+// connection to it is shut down in both directions, as a dropped connection would be (the game's reads see the end,
+// its writes fail). For checking that a drop in the lobby or a match ends in the game's own error, not a hang.
+static void *drop_thread(void *arg) {
+    plat_sleep_until_ns(plat_now_ns() + (uint64_t)(uintptr_t)arg * 1000000ull);
+    int n = 0;
+    pthread_mutex_lock(&lock);
+    for (int i = 0; i < MAX_FDS; i++)
+        if (table[i] && table[i]->type == 1 && net_is_game_server(table[i]->peer_ip)) shutdown(table[i]->h, 2), n++;
+    pthread_mutex_unlock(&lock);
+    LOG("[bsd] RECOMP_NET_DROP_AFTER: %d connection%s to the game server shut down\n", n, n == 1 ? "" : "s");
+    return NULL;
+}
+
+static void drop_test_arm(uint32_t ip) {
+    static bool armed;
+    const char *e = getenv("RECOMP_NET_DROP_AFTER");
+    if (armed || !e || !*e || !net_is_game_server(ip)) return;
+    armed = true;
+    pthread_t t;
+    if (pthread_create(&t, NULL, drop_thread, (void *)(uintptr_t)(atof(e) * 1000)) == 0) pthread_detach(t);
+}
+
 static void do_connect(BsdSock *s, int fd, IpcReq *req, IpcResp *resp) {
     uint32_t ip;
     uint16_t port;
@@ -575,6 +598,7 @@ static void do_connect(BsdSock *s, int fd, IpcReq *req, IpcResp *resp) {
     uint16_t hport = net_dest_port(ip, port);  // (the test server's own port for 443)
     host_addr(&a, ip, hport);
     s->peer_ip = ip, s->peer_port = port;
+    if (s->type == 1) drop_test_arm(ip);
     int r = connect(s->h, (struct sockaddr *)&a, sizeof a);
     uint32_t err = r == 0 ? 0 : hsock_bsd_errno(hsock_errno());
     if (r != 0 && (err == BSD_EINPROGRESS || err == BSD_EAGAIN) && !s->nonblock) {

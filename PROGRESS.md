@@ -82,7 +82,8 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    through `audren` (SMM2's renderer). The game asks `hwopus` only for a work-buffer size at start and never opens a
    decoder, so the stub is enough so far. ✅ The output mix has sound (a 70 s float WAV of Course Practice through
    `LARECOMP_AUDIO_WAV`: silent only through boot and one 2 s fade; music at about 0.03 RMS with sound-effect peaks
-   up to 0.27, no clipping). ⬜ The owner listens on the Mac and the iPad; ⬜ the 35-player battle's sounds.
+   up to 0.27, no clipping). ✅ Confirmed by ear by the owner (2026-10-21, on the Mac: "sound seems OK"). ⏳ The 35-player battle's sounds:
+   outside testers.
 4. 🔄 Input: ✅ the left stick also presses the d-pad (the game walks only with the d-pad here; the iPad's touch stick
    and controllers did nothing). ⬜ Every button the game uses (item roulette with R, targeting with L or the right stick, touch on handheld
    screens), rumble, gyro (the SDK reads six-axis: check it's harmless).
@@ -129,11 +130,13 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    stay held while the finger is down, so this works on the iPad. Found on the way, and harmless: Nextendo answers
    DeliverMessage (protocol 27, method 1: the host's lobby messages) only by forwarding the message back with the
    sender's call id, where kinnay's server also returns a response; the game carries on either way.
-   ⬜ A longer match by hand: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
+   ⏳ A longer match by hand (outside testers, arranged by the owner): the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
    and XP awarded.
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
-5. ⬜ Robustness: latency and packet loss (the SDK's own network emulator can help), a reconnect after a drop, the
-   app going to the background mid-match (iOS and Android), sleep and wake.
+5. 🔄 Robustness: ✅ a dropped connection in the lobby (2026-10-21, `RECOMP_NET_DROP_AFTER=<s>` shuts down every TCP
+   connection to the game server that long after the first one): the game saves and goes back to the main menu
+   within a second, no hang. ⬜ A drop mid-match; latency and packet loss; the app going to the background
+   mid-match (iOS and Android), sleep and wake.
 6. ✅ Friends and presence: not used. Through login, Matching and Cancel the game opens acc, nifm, nsd, sfdnsres,
    bsd, ssl, bcat, prepo (stubbed: play reports go nowhere), pctl, aoc, set, time, hid, irs, audren, hwopus (only a
    size query) and fsp-srv; never `friend` (2026-10-21 audit).
@@ -141,9 +144,9 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 
 ## Phase 4: Platforms ⬜
 
-1. ⬜ Windows: run the release package on a real PC (owner's call on when); Vulkan driver checks. `setjmp`/
+1. ⏳ Windows: run the release package on a real PC (outside testers, arranged by the owner); Vulkan driver checks. `setjmp`/
    `longjmp` across recompiled frames under MinGW's SEH unwinding is untested. Verify it on Windows first.
-2. ⬜ Linux x86-64 / arm64: run the packages (owner's call); an AppImage with SDL3 bundled.
+2. ⏳ Linux x86-64 / arm64: run the packages (outside testers, arranged by the owner); an AppImage with SDL3 bundled.
 3. ⬜ macOS: a signed and notarized app (needs a Developer ID); a fallback for the release workflow when GitHub's
    macOS runners have no capacity (v0.1.0's macOS package was built on the Mac when that happened).
 4. ⬜ iPad / iPhone (owner's devices): install over Tailscale, the touch controls, the notch-safe layout (SMM2's
@@ -158,7 +161,9 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      (`tools/fetch_deps.sh ios-arm64`), asks Xcode for a profile with the two entitlements, signs, and leaves
      build/ios-kit/SM35Recomp.ipa plus Documents/ (the game files to copy into the app with Finder). Run here with
      the owner's team: a signed IPA in about 2 minutes. ⬜ Install it from Finder on a device (the owner's iPad was
-     offline). ⬜ Whether a free Apple account gets the extended-virtual-addressing and increased-memory entitlements.
+     offline). Free Apple accounts: untested, and left to players (owner, 2026-10-21): the README and the kit say a paid
+     Developer account is known to work, a free one is untested (7-day apps, maybe not the two entitlements), and ask
+     for reports.
    - The release workflow attaches the APK and the iOS kit; `check_package.py` covers both.
 6. 🔄 Android (owner has no device). ✅ Runs in the emulator (2026-10-21: Android 15 arm64, gfxstream on the Mac's
    GPU; a private debuggable test build with the game code): it boots to the main menu with all text, at about 45-60

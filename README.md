@@ -75,6 +75,37 @@ for the overlay menu. Controllers work through SDL.
 macOS: the app isn't notarized. The first time, right-click it and choose Open; if macOS still blocks it, run
 `xattr -dr com.apple.quarantine "/path/to/Super Mario 35.app"`. Windows: see [docs/windows.md](docs/windows.md).
 
+### Reporting problems
+
+Open an [issue](https://github.com/sm35recomp/sm35recomp/issues) with your system (OS, CPU, graphics card), what you
+did and what happened, and attach the logs. They hold no keys; the log hides your player id, so it's fine to share.
+
+| System | Game log | Setup logs |
+|---|---|---|
+| macOS | `~/Library/Application Support/org.sm35recomp.sm35recomp/sm35recomp.log` | `logs/setup.log`, `logs/sysdata.log` in that folder |
+| Windows | `sm35recomp.log` next to `sm35recomp.exe` | `logs\setup.log`, `logs\sysdata.log` in that folder |
+| Linux | `~/.local/share/sm35recomp/sm35recomp.log` (started from a terminal: the terminal's output) | `logs/setup.log`, `logs/sysdata.log` in that folder |
+
+Before reporting, two things that look like bugs but aren't:
+
+- **Cancel, Main Menu and Rematch are held, not tapped.** On the Matching and Ranking screens, hold the button for
+  about a second until its gauge fills.
+- **One device per internet connection.** Nextendo tells players apart by their internet address, so two devices on
+  the same home connection can't share a match. Testing together at home: put one device on a phone's hotspot.
+
+### iPhone / iPad
+
+There is no download for iOS: the app holds the game's code, so you make your own on a Mac, from the game the Mac app
+set up. With Xcode signed in to your Apple account and your device connected once:
+
+    recomp/tools/ios_kit.sh --team <your Apple team id>
+
+It makes `build/ios-kit/SM35Recomp.ipa` (drag it onto your device in Finder) and `build/ios-kit/Documents/` (copy its
+contents into the app: Finder, your device, Files, SM 35). A **paid Apple Developer account** is known to work. A free
+account is untested: apps signed with one expire after 7 days, and it may not get two entitlements the app needs
+(extended virtual addressing and the increased memory limit). If you try one, please report how it went in
+[Issues](https://github.com/sm35recomp/sm35recomp/issues).
+
 ## Build it
 
 On macOS (Apple silicon) with Xcode's command line tools, Homebrew `sdl3` and Python 3.12+, from your own extracted
