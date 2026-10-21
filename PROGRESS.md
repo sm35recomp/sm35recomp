@@ -114,15 +114,13 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    - ✅ **A two-player match played through** (2026-10-21, relay room 349, Mac + iPad build 31, released as v0.2.1):
      course 1-1, both players, the Ranking screen with the same result on both (coins 200 / 180), Rematch offered.
 3. 🔄 A full match: ✅ start to the Ranking screen with two players (personal result, Level Up, Ranking; A moves on).
-   🔄 **The Ranking screen ignores Main Menu (B) and Rematch (A)**, and Matching ignores Cancel (B); reproduced with
-   the Mac alone (the controls are read, the game plays the cancel sound, then waits; no service call, no NEX request,
-   no new thread). Not the cause, as tested 2026-10-21: Nextendo answers the host's DeliverMessage calls (protocol 27,
-   method 1: its lobby messages) only by forwarding the message back as a request with the same call id, where
-   kinnay's server also returns a response. A response added in place of the forward stopped rounds from starting
-   (the host waits for its own "close_participation" to come back); one added after the forward, as its own packet
-   with the later sequence numbers shifted (tools kept in the session scratchpad), stalled the game: the forward
-   apparently already completes the call. Next: find what the game's cancel path waits on (its state machine), and
-   compare with Ryujinx on Nextendo if the owner OKs running the dump there.
+   ✅ **Cancel on Matching, and Main Menu / Rematch on the Ranking screen, work: they are held, not tapped**
+   (2026-10-21). Each button fills a gauge while it is held (1/30 per game step, about a second) and acts only once the
+   gauge is full; letting go empties it. The "hang" was the test scripts' 10-20 frame taps. Held for 90 frames, Cancel
+   ends the participation (MatchMakingExt.1) and the game goes back to the main menu. The touch controller's buttons
+   stay held while the finger is down, so this works on the iPad. Found on the way, and harmless: Nextendo answers
+   DeliverMessage (protocol 27, method 1: the host's lobby messages) only by forwarding the message back with the
+   sender's call id, where kinnay's server also returns a response; the game carries on either way.
    ⬜ A longer match by hand: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
    and XP awarded.
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
