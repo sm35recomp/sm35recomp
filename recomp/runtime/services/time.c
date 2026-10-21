@@ -1,6 +1,7 @@
 // time:u / time:a / time:s
 #include <string.h>
 #include <sys/time.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "../hle.h"
@@ -9,7 +10,12 @@
 static const uint8_t clock_uuid[16] = {0x4c, 0x41, 0x52, 0x65, 0x63, 0x6f, 0x6d, 0x70, 1, 2, 3, 4, 5, 6, 7, 8};
 
 static int64_t steady_seconds(void) { return (int64_t)(rt_ticks() / 19200000ull); }
-static int64_t unix_now(void) { return (int64_t)time(NULL); }
+// RECOMP_TIME_OFFSET=<seconds> (test): the game's calendar clock that far from the host's (e.g. 86400: tomorrow)
+static int64_t unix_now(void) {
+    static int64_t off = -1;
+    if (off == -1) { const char *e = getenv("RECOMP_TIME_OFFSET"); off = e && *e ? atoll(e) : 0; if (off == -1) off = 0; }
+    return (int64_t)time(NULL) + off;
+}
 
 static void write_system_context(uint8_t *p) {  // SystemClockContext (0x20)
     int64_t steady = steady_seconds();
@@ -56,28 +62,59 @@ static void steady_clock(Service *s, IpcReq *req, IpcResp *resp) {
     }
 }
 
-static void to_calendar(int64_t t, IpcResp *resp, int utc) {
+// CalendarTime (8: year, month, day, hour, minute, second) at o, CalendarAdditionalInfo (0x18: day of week, day of
+// year, zone name, DST, UTC offset) at a
+static void calendar_into(int64_t t, int utc, uint8_t *o, uint8_t *a) {
     time_t tt = (time_t)t;
     struct tm tm;
     if (utc) gmtime_r(&tt, &tm); else localtime_r(&tt, &tm);
-    uint8_t *o = resp->data;
     *(uint16_t *)o = (uint16_t)(tm.tm_year + 1900);
     o[2] = (uint8_t)(tm.tm_mon + 1); o[3] = (uint8_t)tm.tm_mday;
-    o[4] = (uint8_t)tm.tm_hour; o[5] = (uint8_t)tm.tm_min; o[6] = (uint8_t)tm.tm_sec;
-    *(uint32_t *)(o + 8) = (uint32_t)tm.tm_wday;
-    *(uint32_t *)(o + 12) = (uint32_t)tm.tm_yday;
+    o[4] = (uint8_t)tm.tm_hour; o[5] = (uint8_t)tm.tm_min; o[6] = (uint8_t)tm.tm_sec; o[7] = 0;
+    *(uint32_t *)a = (uint32_t)tm.tm_wday;
+    *(uint32_t *)(a + 4) = (uint32_t)tm.tm_yday;
 #ifdef _WIN32  // no tm_zone / tm_gmtoff: offset = local broken-down time read back as UTC, minus now
     struct tm g;
     gmtime_r(&tt, &g);
     long gmtoff = (long)difftime(_mkgmtime(&tm), _mkgmtime(&g));
-    memcpy(o + 16, utc ? "UTC" : "LCL", 4);
+    memset(a + 8, 0, 8);
+    memcpy(a + 8, utc ? "UTC" : "LCL", 4);
 #else
     long gmtoff = tm.tm_gmtoff;
-    memcpy(o + 16, utc ? "UTC" : tm.tm_zone, 4);
+    memset(a + 8, 0, 8);
+    strncpy((char *)a + 8, utc ? "UTC" : tm.tm_zone ? tm.tm_zone : "LCL", 7);
 #endif
-    *(uint32_t *)(o + 24) = (uint32_t)tm.tm_isdst;
-    *(int32_t *)(o + 28) = utc ? 0 : (int32_t)gmtoff;
+    *(uint32_t *)(a + 16) = (uint32_t)tm.tm_isdst;
+    *(int32_t *)(a + 20) = utc ? 0 : (int32_t)gmtoff;
+}
+
+static void to_calendar(int64_t t, IpcResp *resp, int utc) {
+    calendar_into(t, utc, resp->data, resp->data + 8);
     resp_size(resp, 0x20);
+}
+
+// ClockSnapshot (0xD0), as switchbrew lays it out: the user and network SystemClockContexts (0x00, 0x20), their posix
+// times (0x40, 0x48), calendar times (0x50, 0x58), calendar additional infos (0x60, 0x78), the steady clock time point
+// (0x90), the location name (0xA8), automatic correction (0xCC) and the type (0xCD). Both clocks are the host's, in
+// its own time zone. (Super Mario Bros. 35 takes "today" for its Daily Challenges from this; zeroed, every day was
+// the same day and the challenges never changed.)
+static void clock_snapshot(IpcReq *req, uint8_t type) {
+    IpcBuf *b = out_buf(req, 0);
+    if (!b || b->size < 0xD0) return;
+    uint8_t *o = (uint8_t *)(uintptr_t)b->addr;
+    memset(o, 0, 0xD0);
+    write_system_context(o);
+    write_system_context(o + 0x20);
+    int64_t now = unix_now();
+    *(int64_t *)(o + 0x40) = now;
+    *(int64_t *)(o + 0x48) = now;
+    calendar_into(now, 0, o + 0x50, o + 0x60);
+    calendar_into(now, 0, o + 0x58, o + 0x78);
+    *(int64_t *)(o + 0x90) = steady_seconds();
+    memcpy(o + 0x98, clock_uuid, 16);
+    memcpy(o + 0xA8, "UTC", 4);
+    o[0xCC] = 0;
+    o[0xCD] = type;
 }
 
 static void timezone_service(Service *s, IpcReq *req, IpcResp *resp) {
@@ -119,6 +156,7 @@ static void static_service(Service *s, IpcReq *req, IpcResp *resp) {
         break;
     }
     case 100: case 101: OUT(uint8_t, 0) = 0; resp_size(resp, 1); break;
+    case 400: case 401: clock_snapshot(req, IN(uint8_t, 0)); break;  // GetClockSnapshot(FromSystemClockContext)
     default: LOG("[time] IStaticService cmd %u (ok)\n", req->cmd); resp_size(resp, 0x10);
     }
 }

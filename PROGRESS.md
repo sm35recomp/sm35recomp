@@ -13,7 +13,7 @@ never Nintendo's servers. Bring-up notes are in
 **Paused by the owner after v0.4.0.** Nothing is running and nothing is uncommitted.
 
 - **Works:** setup from the player's dump on macOS; Nextendo sign-in; Course Practice, Special Battle, Daily
-  Challenges, Stats, Options (saved). 35-Player Battles through to the Ranking screen with two players (Mac + iPad).
+  Challenges (a new set each day), Stats, Options (saved). 35-Player Battles through to the Ranking screen with two players (Mac + iPad).
   Matching / Ranking buttons are **hold-to-confirm** (that was never a bug). Online failures show a notice that says
   why. Audio confirmed by ear. Vulkan path runs (Linux arm64 under lavapipe; Android emulator).
 - **Released:** v0.4.0 on GitHub (macOS, Windows, Linux packages: launcher + recompiler, no game code), installed on the
@@ -112,7 +112,9 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    screens), rumble, gyro (the SDK reads six-axis: check it's harmless).
 5. ✅ Menus (2026-10-21): ✅ Stats (records, enemies beaten, recent results; level, coins and courses played kept
    across runs: saving works). ✅ Options is the game's Controls Setup: Movement (d-pad by default; the stick when
-   switched, which is why the stick did nothing at first) and Buttons. ✅ The icon picker (X). ✅ Daily Challenges.
+   switched, which is why the stick did nothing at first) and Buttons. ✅ The icon picker (X). ✅ Daily Challenges, which now change every day (2026-10-21: `time:u` GetClockSnapshot, command
+   400, was unanswered, so the game's "today" was always the same day; the game picks the day's set itself from
+   its own list, nothing comes from a server; `RECOMP_TIME_OFFSET=<s>` shifts the clock for tests).
    ✅ Changing Controls Setup is kept after a restart (Movement switched to the stick: Option.bin rewritten, the
    screen shows the stick after a restart).
 6. ⬜ Reference frames against Ryujinx-Nextendo running the owner's dump (owner OK needed for SM35, as for SMM2).
