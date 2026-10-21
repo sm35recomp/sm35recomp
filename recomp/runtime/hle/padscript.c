@@ -17,7 +17,7 @@ static uint64_t *frames;  // buttons per script frame
 static int64_t nframes, start_tick;
 static _Atomic int64_t ticks;       // clock ticks seen
 static _Atomic uint64_t current;    // what the game reads
-static int loaded = -1;             // -1: not looked at yet
+static int loaded = -1;             // -1: not looked at yet, 0: no script, 1: running, 2: finished
 static bool game_clock;
 
 int padscript_parse_button(const char *n, uint64_t *bit) {
@@ -105,6 +105,9 @@ void padscript_tick(void) {
     if (i == nframes) {
         LOG("[pad] script done (%lld frames)\n", (long long)nframes);
         if (getenv("RECOMP_PAD_EXIT")) { fflush(stderr); _exit(0); }  // (scripted runs that end with the script)
+        // The player gets the controls back (a test session on a device stays usable: the iPad's results screen
+        // ignored every touch after a match script). RECOMP_PAD_HOLD=1: keep reading the finished script (no input).
+        if (!getenv("RECOMP_PAD_HOLD")) { loaded = 2; LOG("[pad] controls handed back to the player\n"); }
     }
 }
 
