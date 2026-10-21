@@ -153,8 +153,8 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 4. ⬜ Frame generation (120 fps output): try it on this game's 2D scenes; off by default, as in SMM2.
 5. ⬜ Shader prefetch and the pipeline cache tuned for SM35's shaders.
 6. ⬜ The update check and release notes flow (in place; check it once v0.2.0 exists).
-7. ⬜ Remove the leftover SMM2 course-server code (`runtime/net/embed_server.*`, `mods.ini` settings in `netcfg`)
-   or reuse its routing for Nextendo.
+7. 🔄 Remove the leftover SMM2 course-server code: ✅ `runtime/net/embed_server.*` and its boot call (2026-10-21);
+   ⬜ the mods' `mods.ini` settings in `netcfg` and `runtime/mods.c`.
 8. ⬜ `make test-tools` (it needs arguments: inherited from SMM2) and a macOS runtime compile job in CI.
 
 ## Phase 6: Keeping the two recomps in step ⬜
