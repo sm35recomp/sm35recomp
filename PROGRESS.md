@@ -83,7 +83,15 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 
 ## Phase 3: 35-player battles and Special Battle 🔄
 
-1. 🔄 Matchmaking: ✅ works on Nextendo (2026-10-21: the Matching screen, the server sends the match relay `wss://51.178.29.194:30001/<id>` with a token and participant counts). ⬜ A match starting. NEX matchmaking and the matchmake referee (the game's `MatchmakeReferee` client) on Nextendo.
+1. 🔄 Matchmaking: ✅ works on Nextendo (2026-10-21: the Matching screen; AutoMatchmake, MatchmakeExtension 40, answers).
+   Two accounts (Mac + the owner's iPad, a second account with a verified e-mail and a linked Discord: Nextendo refuses
+   accounts without one, `discord_unlinked`) were put in the same gathering (relay room 338 on both), yet no match
+   starts: the game holds the Eagle handoff (Notifications, type 200000: `wss://51.178.29.194:30001/<gid>` and a
+   token) without connecting, the counter runs down and starts over, and the referee's `participants_cnt` messages
+   keep coming. In a later run neither device got a handoff at all (only pings after AutoMatchmake). Open: what the
+   game waits for before connecting to Eagle (the referee's start, enough participants, a NAT report: our station URL
+   says `natf=0;natm=0`, the game never ran a NAT check). `RECOMP_NET_HEX=<file>` dumps the NEX traffic; a decoder
+   (WebSocket, PRUDP lite, RMC) is easy to rebuild. Nextendo's server logs would settle it.
 2. ⬜ The in-match relay (`eagle`, the game's real-time transport): find what it connects to (a host from the NEX
    session, TCP, WebSocket or UDP), its TLS, and its framing; route it to Nextendo's relay.
 3. ⬜ A full match: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
