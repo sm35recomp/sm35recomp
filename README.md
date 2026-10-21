@@ -64,7 +64,8 @@ are trademarks of Nintendo.
 4. Press **Set up and play**. The first time it checks and extracts your files, copies the fonts and recompiles the
    game code (a few minutes to half an hour), then the game starts. Later starts go straight to the game.
 5. **Sign in to Nextendo Network.** The game needs its online service even for Course Practice. Make a free account at
-   [nextendo.network](https://nextendo.network), then in the game open the overlay menu (F1 or Esc; the menu button on
+   [nextendo.network](https://nextendo.network), verify its e-mail address and link your Discord account there (Nextendo
+   lets only accounts with a linked Discord play online), then in the game open the overlay menu (F1 or Esc; the menu button on
    touch screens), go to **Online** and choose **Nextendo account: Sign in**. You sign in in your browser (the game
    never sees your password), then restart the game.
 
