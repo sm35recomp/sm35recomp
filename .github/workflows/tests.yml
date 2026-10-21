@@ -1,7 +1,7 @@
 name: tests
 
-# Linux jobs only (cheap). scripts/check.sh runs every gate locally (including the recomp's macOS compile check)
-# before each commit.
+# Linux jobs, and one macOS compile check (the repository is public: macOS runners cost no minutes). scripts/check.sh
+# runs every gate locally before each commit.
 on:
   push:
   pull_request:
@@ -43,3 +43,11 @@ jobs:
             libsdl3-dev libvulkan-dev libshaderc-dev libvulkan-memory-allocator-dev
       - uses: actions/checkout@v4
       - run: make -C recomp -j"$(nproc)" GAME=sm35 runtime-objs
+
+  # The runtime compiles for macOS (Xcode's clang, Metal and AppKit; Homebrew's SDL3; no game files, no link)
+  macos-runtime:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install sdl3
+      - run: make -C recomp -j"$(sysctl -n hw.ncpu)" GAME=sm35 runtime-objs

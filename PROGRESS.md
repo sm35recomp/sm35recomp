@@ -182,8 +182,8 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 7. ✅ Remove the leftover SMM2 course-server code: `runtime/net/embed_server.*` and its boot call (2026-10-21). The
    settings were already SM35's own (`online.ini`, games/sm35/net.c); netcfg's notes now say so. `runtime/mods.c` stays:
    it is the generic mod folder (RECOMP_MOD_DIR, a romfs/ tree laid over the game's), not SMM2's mods.
-8. 🔄 ✅ `make test-tools` runs (the SIMD lowering, then the lifter on 2000 of the game's own instructions; 2026-10-21).
-   ⬜ A macOS runtime compile job in CI.
+8. ✅ `make test-tools` runs (the SIMD lowering, then the lifter on 2000 of the game's own instructions; 2026-10-21).
+   ✅ A macOS runtime compile job in CI (tests.yml `macos-runtime`, 2026-10-21).
 
 ## Phase 6: Keeping the two recomps in step ⬜
 
