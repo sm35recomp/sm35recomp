@@ -150,8 +150,13 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      the owner's team: a signed IPA in about 2 minutes. ⬜ Install it from Finder on a device (the owner's iPad was
      offline). ⬜ Whether a free Apple account gets the extended-virtual-addressing and increased-memory entitlements.
    - The release workflow attaches the APK and the iOS kit; `check_package.py` covers both.
-6. 🔄 Android (owner has no device): ✅ the APK builds (a private test build with the game code; 2026-10-21). ⬜ The
-   emulator: its system image needs about 8 GB of disk, and the SSD has 3.7 GB free. ⬜ A real device.
+6. 🔄 Android (owner has no device). ✅ Runs in the emulator (2026-10-21: Android 15 arm64, gfxstream on the Mac's
+   GPU; a private debuggable test build with the game code): it boots to the main menu with all text, at about 45-60
+   fps. Fixed on the way: the APK build (mbedtls -fPIC, libnativewindow); the app can't read what adb pushes into
+   Android/data/<package> on Android 11+, so the data folder is the internal one when the game files are there
+   (android_push_data.sh --internal); without host memory import, shader global memory read zero (text missing), now
+   per-draw copies of the storage buffers. The emulator lives on the internal disk (~/smm-work/android-sdk, AVD
+   sm35test; delete when done). ⬜ Course Practice there (needs Nextendo sign-in in the emulator). ⬜ A real device.
 7. ⬜ Web (wasm + WebGPU), for the owner's own use on their machine or LAN only, as decided for SMM2. Feasibility after
    the native ports.
 
