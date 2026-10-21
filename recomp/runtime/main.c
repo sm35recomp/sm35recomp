@@ -251,6 +251,19 @@ int main(int argc, char **argv) {
         else if (argv[i][0] != '-') root = arg_root;
     }
     rt_paths_init();  // the data root becomes the working directory (runtime/paths.h)
+    {   // tests on a device without a shell (iOS): recomp-test.env in the data root, KEY=value lines, sets the environment
+        FILE *f = fopen("recomp-test.env", "r");
+        char line[1024];
+        while (f && fgets(line, sizeof line, f)) {
+            line[strcspn(line, "\r\n")] = 0;
+            char *eq = strchr(line, '=');
+            if (line[0] == '#' || !eq || eq == line) continue;
+            *eq = 0;
+            setenv(line, eq + 1, 1);
+            fprintf(stderr, "[main] recomp-test.env: %s set\n", line);
+        }
+        if (f) fclose(f);
+    }
     // The setup screen (runtime/ui/launcher.mm): in place of the game until the player's files are set up, and after
     // Quit to Start Screen. Then the game boots in its window.
     extern bool launcher_needed(const char *root, bool asked);
