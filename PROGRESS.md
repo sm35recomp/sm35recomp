@@ -134,7 +134,9 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
 5. ⬜ Robustness: latency and packet loss (the SDK's own network emulator can help), a reconnect after a drop, the
    app going to the background mid-match (iOS and Android), sleep and wake.
-6. ⬜ Friends and presence if the game uses them (`friend` service, Nextendo account server).
+6. ✅ Friends and presence: not used. Through login, Matching and Cancel the game opens acc, nifm, nsd, sfdnsres,
+   bsd, ssl, bcat, prepo (stubbed: play reports go nowhere), pctl, aoc, set, time, hid, irs, audren, hwopus (only a
+   size query) and fsp-srv; never `friend` (2026-10-21 audit).
 7. ⏳ Live matches need other players on Nextendo at the same time (or Nextendo's bots, if it has them).
 
 ## Phase 4: Platforms ⬜
