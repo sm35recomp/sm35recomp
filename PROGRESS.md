@@ -76,7 +76,9 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 3. 🔄 Audio: mixed, not yet confirmed by ear (2026-10-21, Course Practice with `LARECOMP_AUDIO_LOG=1`): the music
    streams as stereo DSP ADPCM at 44.1 kHz (two voices), and up to 18 sound-effect voices play ADPCM at 32 kHz, all
    through `audren` (SMM2's renderer). The game asks `hwopus` only for a work-buffer size at start and never opens a
-   decoder, so the stub is enough so far. ⬜ The owner listens on the Mac and the iPad; ⬜ the 35-player battle's sounds.
+   decoder, so the stub is enough so far. ✅ The output mix has sound (a 70 s float WAV of Course Practice through
+   `LARECOMP_AUDIO_WAV`: silent only through boot and one 2 s fade; music at about 0.03 RMS with sound-effect peaks
+   up to 0.27, no clipping). ⬜ The owner listens on the Mac and the iPad; ⬜ the 35-player battle's sounds.
 4. 🔄 Input: ✅ the left stick also presses the d-pad (the game walks only with the d-pad here; the iPad's touch stick
    and controllers did nothing). ⬜ Every button the game uses (item roulette with R, targeting with L or the right stick, touch on handheld
    screens), rumble, gyro (the SDK reads six-axis: check it's harmless).
