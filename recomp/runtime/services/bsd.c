@@ -21,8 +21,9 @@
 #include "../net/netcfg.h"
 #include "../net/vlan.h"
 
-enum { E_OK = 0, E_BADF = 9, E_AGAIN = 35, E_NOTSOCK = 38, E_PROTONOSUPPORT = 43, E_AFNOSUPPORT = 47,
-       E_NETDOWN = 50, E_INVAL = 22, E_MSGSIZE = 40, E_NOTCONN = 57, E_DESTADDRREQ = 39 };
+// (Linux errno numbers, as the Switch's socket library uses: see net/hostsock.h)
+enum { E_OK = 0, E_BADF = 9, E_AGAIN = 11, E_NOTSOCK = 88, E_PROTONOSUPPORT = 93, E_AFNOSUPPORT = 97,
+       E_NETDOWN = 100, E_INVAL = 22, E_MSGSIZE = 90, E_NOTCONN = 107, E_DESTADDRREQ = 89 };
 
 #define MAX_SOCKS 64
 #define QUEUE 128

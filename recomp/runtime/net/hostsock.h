@@ -50,15 +50,19 @@ typedef socklen_t hsocklen_t;
 #define MSG_NOSIGNAL 0
 #endif
 
-// FreeBSD errno numbers (what the game's socket library expects)
+// The errno numbers the game's socket library expects. They are Linux's, not FreeBSD's: the Switch's socket errno
+// enum follows Linux (EAGAIN 11, EINPROGRESS 115, EISCONN 106 ...). SM35's own socket wrapper tests the value after
+// a failed connect against 115 for "in progress" and 11 / 100 / 9 after a close: with FreeBSD's 36 it never saw
+// its relay connection as pending, and connected to Nextendo's match relay again every frame until it gave up.
 enum {
-    BSD_EPERM = 1, BSD_ENOENT = 2, BSD_EINTR = 4, BSD_EIO = 5, BSD_EBADF = 9, BSD_ENOMEM = 12, BSD_EACCES = 13,
-    BSD_EFAULT = 14, BSD_EBUSY = 16, BSD_EINVAL = 22, BSD_EMFILE = 24, BSD_EPIPE = 32, BSD_EAGAIN = 35,
-    BSD_EINPROGRESS = 36, BSD_EALREADY = 37, BSD_ENOTSOCK = 38, BSD_EDESTADDRREQ = 39, BSD_EMSGSIZE = 40,
-    BSD_EPROTOTYPE = 41, BSD_ENOPROTOOPT = 42, BSD_EPROTONOSUPPORT = 43, BSD_EOPNOTSUPP = 45, BSD_EAFNOSUPPORT = 47,
-    BSD_EADDRINUSE = 48, BSD_EADDRNOTAVAIL = 49, BSD_ENETDOWN = 50, BSD_ENETUNREACH = 51, BSD_ENETRESET = 52,
-    BSD_ECONNABORTED = 53, BSD_ECONNRESET = 54, BSD_ENOBUFS = 55, BSD_EISCONN = 56, BSD_ENOTCONN = 57,
-    BSD_ESHUTDOWN = 58, BSD_ETIMEDOUT = 60, BSD_ECONNREFUSED = 61, BSD_EHOSTDOWN = 64, BSD_EHOSTUNREACH = 65,
+    BSD_EPERM = 1, BSD_ENOENT = 2, BSD_EINTR = 4, BSD_EIO = 5, BSD_EBADF = 9, BSD_EAGAIN = 11, BSD_ENOMEM = 12,
+    BSD_EACCES = 13, BSD_EFAULT = 14, BSD_EBUSY = 16, BSD_EINVAL = 22, BSD_EMFILE = 24, BSD_EPIPE = 32,
+    BSD_ENOTSOCK = 88, BSD_EDESTADDRREQ = 89, BSD_EMSGSIZE = 90, BSD_EPROTOTYPE = 91, BSD_ENOPROTOOPT = 92,
+    BSD_EPROTONOSUPPORT = 93, BSD_EOPNOTSUPP = 95, BSD_EAFNOSUPPORT = 97, BSD_EADDRINUSE = 98,
+    BSD_EADDRNOTAVAIL = 99, BSD_ENETDOWN = 100, BSD_ENETUNREACH = 101, BSD_ENETRESET = 102, BSD_ECONNABORTED = 103,
+    BSD_ECONNRESET = 104, BSD_ENOBUFS = 105, BSD_EISCONN = 106, BSD_ENOTCONN = 107, BSD_ESHUTDOWN = 108,
+    BSD_ETIMEDOUT = 110, BSD_ECONNREFUSED = 111, BSD_EHOSTDOWN = 112, BSD_EHOSTUNREACH = 113, BSD_EALREADY = 114,
+    BSD_EINPROGRESS = 115,
 };
 
 static inline bool hsock_would_block(int e) {

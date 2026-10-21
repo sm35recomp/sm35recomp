@@ -63,6 +63,7 @@ uint32_t bsd_sock_peer_ip(BsdSock *s) { (void)s; return 0; }
 int bsd_sock_send(BsdSock *s, const void *d, size_t n) { (void)s, (void)d, (void)n; return -2; }
 int bsd_sock_recv(BsdSock *s, void *d, size_t n) { (void)s, (void)d, (void)n; return -2; }
 int bsd_sock_wait(BsdSock *s, bool w, int ms) { (void)s, (void)w, (void)ms; return -1; }
+uint64_t plat_now_ns(void) { return 0; }
 
 static int failures;
 #define CHECK(c, ...) do { if (!(c)) { printf("  FAIL %s: ", __func__); printf(__VA_ARGS__); printf("\n"); failures++; return; } } while (0)
