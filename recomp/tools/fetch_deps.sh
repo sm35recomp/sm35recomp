@@ -1,5 +1,6 @@
 #!/bin/bash
-# usage: tools/fetch_deps.sh <target> [out]   (windows-x86_64 | linux-x86_64 | linux-aarch64; out: build/deps-<target>)
+# usage: tools/fetch_deps.sh <target> [out]   (windows-x86_64 | linux-x86_64 | linux-aarch64 | ios-arm64 | iossim-arm64;
+#        out: build/deps-<target>)
 # The headers and link libraries a cross build of the runtime needs (make TARGET=<target> DEPS=<out>), arranged as
 # docs/windows.md and recomp/README.md describe: include/ (SDL3, vulkan, vk_video, shaderc, vk_mem_alloc.h), lib/, and
 # for Windows bin/ (the DLLs the package ships).
@@ -7,6 +8,8 @@
 #   linux-*:        from this machine's Debian / Ubuntu multiarch packages (the release workflow runs in a Debian 13
 #                   container: apt install libsdl3-dev libvulkan-dev libshaderc-dev libvulkan-memory-allocator-dev,
 #                   with :arm64 for linux-aarch64, libshaderc1:arm64 in place of libshaderc-dev:arm64)
+#   ios-arm64 / iossim-arm64: SDL3 built from its release source (pinned by sha256) as a static library for the
+#                   device / the Simulator, with Xcode and CMake (Homebrew)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TARGET=$1
@@ -54,6 +57,26 @@ linux-x86_64|linux-aarch64)
         [ -e "$s" ] || { echo "/usr/lib/$T/$l is missing (apt install the -dev packages for ${T%%-*})"; exit 1; }
         cp -L "$s" "$OUT/lib/$l"
     done
+    ;;
+ios-arm64|iossim-arm64)
+    SDLV=3.4.18 SDLSHA=9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3
+    DL=build/dl
+    mkdir -p "$DL"
+    f=$DL/SDL3-$SDLV.tar.gz
+    [ -f "$f" ] || { curl -fsSL --proto '=https' -o "$f.part" "https://github.com/libsdl-org/SDL/releases/download/release-$SDLV/SDL3-$SDLV.tar.gz" && mv "$f.part" "$f"; }
+    got=$(shasum -a 256 < "$f" | cut -d' ' -f1)
+    [ "$got" = "$SDLSHA" ] || { echo "$f: sha256 $got, expected $SDLSHA"; exit 1; }
+    command -v cmake >/dev/null || { echo "fetch_deps.sh: $TARGET needs cmake (brew install cmake)"; exit 1; }
+    X=$(mktemp -d)
+    tar -xzf "$f" -C "$X"
+    SYSROOT=$([ "$TARGET" = ios-arm64 ] && echo iphoneos || echo iphonesimulator)
+    cmake -S "$X/SDL3-$SDLV" -B "$X/build" -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=$SYSROOT \
+        -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 -DCMAKE_BUILD_TYPE=Release \
+        -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_TEST_LIBRARY=OFF -DSDL_EXAMPLES=OFF \
+        -DCMAKE_INSTALL_PREFIX="$(cd "$OUT" && pwd)" > "$X/configure.log" 2>&1 || { tail -20 "$X/configure.log"; exit 1; }
+    cmake --build "$X/build" --config Release -j "$(sysctl -n hw.ncpu)" > "$X/build.log" 2>&1 || { tail -20 "$X/build.log"; exit 1; }
+    cmake --install "$X/build" --config Release > /dev/null
+    rm -rf "$X"
     ;;
 *) echo "fetch_deps.sh: no target $TARGET"; exit 1 ;;
 esac

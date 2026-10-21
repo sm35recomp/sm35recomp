@@ -143,10 +143,12 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      from their own dump, and the APK imports it with the game files: a folder or zip picked through the system file
      picker. Check that Android 14+ still allows loading a read-only native library from app storage. Without a
      device here, test on the emulator.
-   - **iOS / iPadOS:** a "make your own IPA" kit. One command on a Mac with Xcode takes the player's dump, recompiles,
-     builds and signs the IPA with the player's own Apple ID. Check which entitlements a free Apple account can get:
-     extended virtual addressing and the increased memory limit. If a free account can't, the kit needs a paid
-     developer account, or a lower guest window and less memory.
+   - **iOS / iPadOS:** 🔄 a "make your own IPA" kit: `recomp/tools/ios_kit.sh --team <Apple team id>` (2026-10-21).
+     It takes the game files the Mac app set up, recompiles, builds SDL3 for iOS from its pinned source
+     (`tools/fetch_deps.sh ios-arm64`), asks Xcode for a profile with the two entitlements, signs, and leaves
+     build/ios-kit/SM35Recomp.ipa plus Documents/ (the game files to copy into the app with Finder). Run here with
+     the owner's team: a signed IPA in about 2 minutes. ⬜ Install it from Finder on a device (the owner's iPad was
+     offline). ⬜ Whether a free Apple account gets the extended-virtual-addressing and increased-memory entitlements.
    - The release workflow attaches the APK and the iOS kit; `check_package.py` covers both.
 6. 🔄 Android (owner has no device): ✅ the APK builds (a private test build with the game code; 2026-10-21). ⬜ The
    emulator: its system image needs about 8 GB of disk, and the SSD has 3.7 GB free. ⬜ A real device.
