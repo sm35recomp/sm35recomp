@@ -299,6 +299,11 @@ bool net_name_for_ip(uint32_t ip, char *out, size_t cap) {
     return found;
 }
 
+bool net_is_game_server(uint32_t ip) {
+    init();
+    return backend_eff == NET_BACKEND_NEXTENDO && ip == nx_server;
+}
+
 // (nextendo: TCP to Nextendo's game server and their NAT check only, not to net_hosts= targets)
 bool net_dest_allowed(uint32_t ip) {
     init();

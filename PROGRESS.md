@@ -56,8 +56,12 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    unpacks it (zlib's puff) to `events/romfs/` and lays it over the RomFS. The main menu offers Special Battle.
 9. ✅ Offline: the game opens no error dialog of its own (nifm has no applet to give it), so the overlay shows a
    notice when the game asks for the network: not signed in, the Service not Nextendo, or a restart needed.
-10. ⬜ Online but failing (Nextendo down, the login refused): the game drops back to the menu; say why (the NEX login's
-    result is in the log).
+10. ✅ Online but failing (2026-10-21): a notice over the game says why (runtime/net/nexwatch.c). Nextendo's game
+    server unreachable (TCP refused or timed out, or the TLS handshake / pin failed): "Can't reach Nextendo's game
+    server (reason)". The login refused (a TicketGranting / SecureConnection reply that is an RMC error, or whose Result
+    is one), read from the server's replies on the game's TLS connections: maintenance, the account online elsewhere,
+    the account disabled, the sign-in not accepted (sign out and in again), or the NEX error's name and code. Tested
+    with synthetic replies (tools/test_net.sh, 4 cases) and a run against a closed port.
 11. ✅ Tests: the request, sign-in and token paths against a local mock (`tools/test_net.sh`, 27 cases; one combined
     run in five failed with no output under load, not reproduced in 46 runs since: watch it).
 

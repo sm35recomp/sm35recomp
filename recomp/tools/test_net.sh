@@ -51,7 +51,7 @@ clang "$OUT"/obj/*.o $LIBS -o "$OUT/test_net$EXE"
 # the second binary: netcfg.c + token.c + ssl.c + json.c with the stand-in account, and the same Mbed TLS objects
 mkdir -p "$OUT/obj_cfg"
 pids=()
-for f in runtime/net/netcfg.c runtime/net/token.c runtime/net/json.c runtime/services/ssl.c tools/test_netcfg.c tools/test_nextendo_stub.c; do
+for f in runtime/net/netcfg.c runtime/net/token.c runtime/net/json.c runtime/net/nexwatch.c runtime/services/ssl.c tools/test_netcfg.c tools/test_nextendo_stub.c; do
     clang $FLAGS -c "$f" -o "$OUT/obj_cfg/$(basename "$f" .c).o" &
     pids+=($!)
 done
@@ -87,6 +87,7 @@ CASES="$CASES pkce_rfc7636 signin_loopback_full refresh_rotates_and_persists cal
 [ -n "$NET_TEST_LIVE" ] && CASES="$CASES https_live_nextendo https_live_nextendo_embedded_only https_live_selfsigned_refused"
 CFG_CASES="ours_default_untouched nextendo_routes nextendo_hosts_local_only nextendo_dest nextendo_overrides nextendo_not_signed_in_falls_back"
 CFG_CASES="$CFG_CASES id_token_rs256 id_token_key_kept id_token_no_nex_token pin_mismatch_refused nextendo_percent_names log_redacts_pid"
+CFG_CASES="$CFG_CASES nexwatch_rmc_error nexwatch_result_error nexwatch_login_ok_silent nexwatch_connect_failed"
 [ -n "$NET_TEST_LIVE" ] && CFG_CASES="$CFG_CASES pin_live_ok"
 ok=true
 "$OUT/test_net$EXE" $CASES || ok=false

@@ -30,6 +30,7 @@
 #include "../ipc.h"
 #include "../net/hostsock.h"
 #include "../net/netcfg.h"
+#include "../net/nexwatch.h"
 #include "../platform.h"
 
 #define MAX_FDS 128
@@ -286,7 +287,10 @@ static void do_getsockopt(BsdSock *s, IpcReq *req, IpcResp *resp) {
     int x = 0;
     hsocklen_t n = sizeof x;
     int r = getsockopt(s->h, hl, hn, (char *)&x, &n);
-    if (r == 0 && hn == SO_ERROR && x) x = (int)hsock_bsd_errno(x);
+    if (r == 0 && hn == SO_ERROR && x) {
+        x = (int)hsock_bsd_errno(x);
+        if (s->type == 1) net_connect_failed(s->peer_ip, (uint32_t)x);  // (a non-blocking connect's outcome)
+    }
     if (r == 0 && hn == SO_TYPE) x = s->type;
     if (b->size >= 4) *(int32_t *)o = x;
     result_len(resp, r == 0 ? 0 : -1, r == 0 ? 0 : hsock_bsd_errno(hsock_errno()), 4);
@@ -588,6 +592,7 @@ static void do_connect(BsdSock *s, int fd, IpcReq *req, IpcResp *resp) {
         r == 0 ? "connected" : err == BSD_EINPROGRESS ? "in progress" : err == BSD_EISCONN ? "already connected" : "failed",
         s->nonblock ? " (non-blocking)" : "");
     if (r != 0 && bsd_trace()) LOG("[bsd]   connect error %u\n", err);
+    if (r != 0 && err != BSD_EINPROGRESS && err != BSD_EISCONN && s->type == 1) net_connect_failed(ip, err);
     result(resp, r == 0 ? 0 : -1, err);
 }
 

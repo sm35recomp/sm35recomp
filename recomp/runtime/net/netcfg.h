@@ -69,6 +69,7 @@ bool net_name_for_ip(uint32_t ip, char *out, size_t cap);
 // address with nextendo (PIA's peers).
 bool net_dest_allowed(uint32_t ip);
 bool net_dest_allowed_udp(uint32_t ip);
+bool net_is_game_server(uint32_t ip);  // nextendo is the backend in effect and ip is its game server (and relay)
 bool net_ip_is_local(uint32_t ip);     // loopback, private, link-local, CGNAT
 uint32_t net_test_server_ip(void);     // host order
 // The port a game connection to ip:port really goes to (the test server's port stands in for 443)

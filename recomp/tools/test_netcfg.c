@@ -26,6 +26,7 @@
 
 #include "../runtime/net/json.h"
 #include "../runtime/net/netcfg.h"
+#include "../runtime/net/nexwatch.h"
 #include "../runtime/net/token.h"
 
 // the stand-in account (test_nextendo_stub.c)
@@ -64,6 +65,9 @@ int bsd_sock_send(BsdSock *s, const void *d, size_t n) { (void)s, (void)d, (void
 int bsd_sock_recv(BsdSock *s, void *d, size_t n) { (void)s, (void)d, (void)n; return -2; }
 int bsd_sock_wait(BsdSock *s, bool w, int ms) { (void)s, (void)w, (void)ms; return -1; }
 uint64_t plat_now_ns(void) { return 0; }
+// the overlay's notice (runtime/ui/menu.mm): kept for the nexwatch cases
+static char notice[512];
+void menu_notice(const char *text, double seconds) { (void)seconds; snprintf(notice, sizeof notice, "%s", text); }
 
 static int failures;
 #define CHECK(c, ...) do { if (!(c)) { printf("  FAIL %s: ", __func__); printf(__VA_ARGS__); printf("\n"); failures++; return; } } while (0)
@@ -379,6 +383,77 @@ static void log_redacts_pid(void) {
     CHECK(strlen(small) < sizeof small && !strpbrk(small, "0123456789"), "small buffer leaked digits: %s", small);
 }
 
+// ---- nexwatch (runtime/net/nexwatch.c): a refused login, seen in the server's WebSocket / PRUDP lite / RMC bytes
+
+// one server reply: the HTTP upgrade (first), then a WebSocket binary frame holding a PRUDP lite DATA packet with rmc
+static size_t server_bytes(uint8_t *out, bool http, const uint8_t *rmc, size_t n) {
+    size_t o = 0;
+    if (http) {
+        const char *h = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n";
+        memcpy(out, h, strlen(h)), o = strlen(h);
+    }
+    size_t pk = 12 + n;
+    out[o++] = 0x82;
+    if (pk < 126) out[o++] = (uint8_t)pk;
+    else out[o++] = 126, out[o++] = (uint8_t)(pk >> 8), out[o++] = (uint8_t)pk;
+    uint8_t hdr[12] = {0x80, 0, (uint8_t)n, (uint8_t)(n >> 8), 0x11, 0x0f, 0x0f, 0, 0x22, 0x00, 0x05, 0x00};  // DATA, RELIABLE|NEED_ACK
+    memcpy(out + o, hdr, 12), o += 12;
+    memcpy(out + o, rmc, n), o += n;
+    return o;
+}
+static void put32(uint8_t *p, uint32_t v) { p[0] = (uint8_t)v, p[1] = (uint8_t)(v >> 8), p[2] = (uint8_t)(v >> 16), p[3] = (uint8_t)(v >> 24); }
+
+static void nexwatch_rmc_error(void) {  // TicketGranting answers with an RMC error: the notice names it
+    nextendo_env();
+    uint8_t rmc[14], buf[256];
+    put32(rmc, 10), rmc[4] = 10, rmc[5] = 0, put32(rmc + 6, 0x8068000B), put32(rmc + 10, 8);
+    NexWatch *w = nexwatch_new();
+    size_t n = server_bytes(buf, true, rmc, sizeof rmc);
+    nexwatch_in(w, buf, 30), nexwatch_in(w, buf + 30, n - 30);  // (split mid-frame: kept for the next read)
+    nexwatch_free(w);
+    CHECK(strstr(notice, "maintenance") && strstr(notice, "Authentication::UnderMaintenance"), "notice: \"%s\"", notice);
+}
+
+static void nexwatch_result_error(void) {  // LoginWithContext succeeds as a call, but its Result is an error
+    nextendo_env();
+    uint8_t rmc[22], buf[256];
+    put32(rmc, 18), rmc[4] = 10, rmc[5] = 1, put32(rmc + 6, 8), put32(rmc + 10, 6 | 0x8000), put32(rmc + 14, 0x80030069);
+    put32(rmc + 18, 0);
+    NexWatch *w = nexwatch_new();
+    size_t n = server_bytes(buf, true, rmc, sizeof rmc);
+    nexwatch_in(w, buf, n);
+    nexwatch_free(w);
+    CHECK(strstr(notice, "already online") && strstr(notice, "ConcurrentLoginDenied"), "notice: \"%s\"", notice);
+}
+
+static void nexwatch_login_ok_silent(void) {  // a good login, other protocols' errors, and requests: no notice
+    nextendo_env();
+    uint8_t ok[22], other[14], req[13], buf[256];
+    put32(ok, 18), ok[4] = 10, ok[5] = 1, put32(ok + 6, 8), put32(ok + 10, 6 | 0x8000), put32(ok + 14, 0x00010001), put32(ok + 18, 0);
+    put32(other, 10), other[4] = 109, other[5] = 0, put32(other + 6, 0x800300D9), put32(other + 10, 9);
+    put32(req, 9), req[4] = 10 | 0x80, put32(req + 5, 3), put32(req + 9, 6);
+    NexWatch *w = nexwatch_new();
+    size_t n = server_bytes(buf, true, ok, sizeof ok);
+    nexwatch_in(w, buf, n);
+    n = server_bytes(buf, false, other, sizeof other), nexwatch_in(w, buf, n);
+    n = server_bytes(buf, false, req, sizeof req), nexwatch_in(w, buf, n);
+    nexwatch_free(w);
+    CHECK(!notice[0], "notice: \"%s\"", notice);
+    NexWatch *h = nexwatch_new();  // not WebSocket (a plain HTTPS reply): ignored
+    const char *page = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+    nexwatch_in(h, (const uint8_t *)page, strlen(page));
+    nexwatch_free(h);
+    CHECK(!notice[0], "notice after HTTP: \"%s\"", notice);
+}
+
+static void nexwatch_connect_failed(void) {  // the game server unreachable: a notice; another address: none
+    nextendo_env();
+    net_connect_failed(0x08080808, 111);
+    CHECK(!notice[0], "notice for 8.8.8.8: \"%s\"", notice);
+    net_connect_failed(SERVER, 111);
+    CHECK(strstr(notice, "Can't reach Nextendo's game server (connection refused)"), "notice: \"%s\"", notice);
+}
+
 static const struct { const char *name; void (*fn)(void); } cases[] = {
     {"nextendo_percent_names", nextendo_percent_names}, {"log_redacts_pid", log_redacts_pid},
     {"ours_default_untouched", ours_default_untouched}, {"nextendo_routes", nextendo_routes},
@@ -386,6 +461,8 @@ static const struct { const char *name; void (*fn)(void); } cases[] = {
     {"nextendo_overrides", nextendo_overrides}, {"nextendo_not_signed_in_falls_back", nextendo_not_signed_in_falls_back},
     {"id_token_rs256", id_token_rs256}, {"id_token_key_kept", id_token_key_kept}, {"id_token_no_nex_token", id_token_no_nex_token},
     {"pin_mismatch_refused", pin_mismatch_refused}, {"pin_live_ok", pin_live_ok},
+    {"nexwatch_rmc_error", nexwatch_rmc_error}, {"nexwatch_result_error", nexwatch_result_error},
+    {"nexwatch_login_ok_silent", nexwatch_login_ok_silent}, {"nexwatch_connect_failed", nexwatch_connect_failed},
 };
 
 int main(int argc, char **argv) {

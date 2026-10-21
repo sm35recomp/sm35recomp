@@ -35,6 +35,7 @@
 #include "../hle.h"
 #include "../ipc.h"
 #include "../net/netcfg.h"
+#include "../net/nexwatch.h"
 #include "bsd.h"
 
 #define SSL_RESULT(d) MAKE_RESULT(123, d)
@@ -68,6 +69,7 @@ typedef struct {
     uint8_t *peek;          // Peek: read ahead, served first by Read
     size_t npeek;
     uint64_t sent, recvd;   // plaintext bytes (logs)
+    NexWatch *watch;        // the server's replies, for a refused login's notice (runtime/net/nexwatch.h)
 } SslConn;
 
 // ---- one random generator for every connection (Mbed TLS: not thread-safe on its own)
@@ -270,6 +272,7 @@ static void conn_free(SslConn *c) {
     if (c->sock) bsd_sock_unref(c->sock);
     if (c->ctx) c->ctx->conns--;
     free(c->peek);
+    nexwatch_free(c->watch);
     pthread_mutex_destroy(&c->mu);
     NLOG("[ssl] connection to %s closed (%llu bytes out, %llu in)\n", c->sni[0] ? c->sni : "?",
          (unsigned long long)c->sent, (unsigned long long)c->recvd);
@@ -283,10 +286,17 @@ static void handshake(SslConn *c, IpcReq *req, IpcResp *resp) {
     if (!conn_setup(c)) { resp->result = R_VERIFY_FAILED; return; }
     uint32_t res;
     int r = run(c, op_handshake, NULL, 0, &res);
-    if (r < 0) { resp->result = res; return; }
+    if (r < 0) {
+        if (res != R_WOULD_BLOCK && net_is_game_server(bsd_sock_peer_ip(c->sock)))
+            net_failure_notice(NET_FAIL_TLS, res == R_VERIFY_FAILED ? "its certificate isn't trusted" : "the secure connection failed", 0);
+        resp->result = res;
+        return;
+    }
     uint8_t pin[32];
     if (net_tls_trust() == NET_TRUST_PINNED && (!net_tls_pin(pin) || !ssl_pin_check(mbedtls_ssl_get_peer_cert(&c->ssl), pin))) {
         LOG("[ssl] %s: certificate pin mismatch (expected Nextendo's game server); refused\n", c->sni);
+        if (net_is_game_server(bsd_sock_peer_ip(c->sock)))
+            net_failure_notice(NET_FAIL_TLS, "its certificate isn't Nextendo's", 0);
         c->verify_result = R_VERIFY_FAILED;  // (not done: no read or write goes through)
         resp->result = R_VERIFY_FAILED;
         return;
@@ -326,7 +336,11 @@ static void conn_read(SslConn *c, IpcReq *req, IpcResp *resp, bool peek) {
         c->npeek += (size_t)r;
         pthread_mutex_unlock(&c->mu);
         free(tmp);
-        if (r) log_data("->game", c, c->peek + c->npeek - r, (size_t)r);
+        if (r) {
+            log_data("->game", c, c->peek + c->npeek - r, (size_t)r);
+            if (!c->watch) c->watch = nexwatch_new();
+            nexwatch_in(c->watch, c->peek + c->npeek - r, (size_t)r);
+        }
     }
     pthread_mutex_lock(&c->mu);
     size_t n = c->npeek < cap ? c->npeek : cap;
