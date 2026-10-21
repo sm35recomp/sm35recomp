@@ -85,7 +85,8 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 5. 🔄 Menus (2026-10-21): ✅ Stats (records, enemies beaten, recent results; level, coins and courses played kept
    across runs: saving works). ✅ Options is the game's Controls Setup: Movement (d-pad by default; the stick when
    switched, which is why the stick did nothing at first) and Buttons. ✅ The icon picker (X). ✅ Daily Challenges.
-   ⬜ Changing Controls Setup and checking it is kept after a restart.
+   ✅ Changing Controls Setup is kept after a restart (Movement switched to the stick: Option.bin rewritten, the
+   screen shows the stick after a restart).
 6. ⬜ Reference frames against Ryujinx-Nextendo running the owner's dump (owner OK needed for SM35, as for SMM2).
    Covers the main menu, course select, and a course in each theme.
 7. ⬜ Performance: steady 60 fps in a full 35-player scene; the first-play shader stutter (prefetch and warm-up);
