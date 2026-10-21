@@ -4,18 +4,19 @@
 // socket reaches only the addresses the redirect table names (and, with nextendo, PIA peers over UDP).
 //
 // Backends (setting "backend"):
-//   ours       (default) the current mod path: the mods answer Course World from our course server over HTTP
-//              (games/smm2/mods); the game's own sockets stay off (only the virtual LAN, runtime/net/vlan.h)
+//   ours       the game's own choice without NEX (SMM2: its mods answer Course World from our course server over
+//              HTTP; SM35: offline); the game's own sockets stay off (only the virtual LAN, runtime/net/vlan.h). The
+//              default unless the game names another (game_net_default_backend: SM35 says nextendo)
 //   local-nex  the game's own NEX client runs (the mods' online overrides switch off) against a local NEX test
 //              server (tools/nex_test_server): real TCP / UDP sockets, the game's hosts resolve to that server
-//   nextendo   Nextendo Network (runtime/net/nextendo.h): the game's own NEX client against Nextendo's SMM2 server.
+//   nextendo   Nextendo Network (runtime/net/nextendo.h): the game's own NEX client against Nextendo's game server.
 //              Needs a signed-in Nextendo account; without one it is logged and the backend is "ours". The game's
 //              hosts resolve to Nextendo's game server (nncs2-lp1.n.n.srv.nintendo.net: their NAT check), TCP
 //              reaches those two only (not net_hosts= targets), UDP any address (PIA's peers), and the game server's TLS certificate is
 //              pinned (its public key's SHA-256). The account's PID, user name and an ID token carrying the
 //              account's game token come from acc (services/acc.c, runtime/net/token.c)
 //
-// Settings: environment variable, else the game's settings (game_net_config: smm2mods.ini for SMM2):
+// Settings: environment variable, else the game's settings (game_net_config: online.ini for SM35, games/sm35/net.c):
 //   RECOMP_NET_BACKEND        backend=           ours | local-nex | nextendo
 //   RECOMP_NET_TEST_SERVER    nex_test_server=   the local NEX test server, ip[:port] (default 127.0.0.1:44300); must
 //                                                be a local address (loopback, private, link-local, CGNAT 100.64/10).

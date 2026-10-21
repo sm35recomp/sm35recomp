@@ -16,7 +16,7 @@
 #include "../hle.h"
 #include "nextendo.h"
 
-// a game's own settings store (runtime/game_hooks.c, weak: none): SMM2 keeps these in smm2mods.ini
+// a game's own settings store (runtime/game_hooks.c, weak: none): SM35's online.ini (games/sm35/net.c)
 bool game_net_config(const char *key, char *out, size_t cap);
 void game_net_config_set(const char *key, const char *val);
 // a game's backend when none is set, and its own words for the choices (runtime/game_hooks.c: ours, and NULL = the

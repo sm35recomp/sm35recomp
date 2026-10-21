@@ -753,9 +753,10 @@ static void tabs_body(float scale, bool in_game, void (*prelaunch)(float)) {
     static const int order[] = {8, 0, 1, 2, 9};  // Controls, Video, Audio, Mods, Quit
     const GameModToggle *mods;
     bool have_mods = game_mod_toggles(&mods) > 0 || launcher_has_settings() || online_rows_available();
-    for (int i : order)  // (Quit: in game only; Mods: when the game has some)
+    for (int i : order)  // (Quit: in game only; Mods: when the game has some. A game without mod toggles - SM35 - calls
+                         // the page Online: its online settings, then the app's updates and game files)
         if ((i != 9 || !prelaunch) && (i != 2 || have_mods))
-            tabs[ntabs++] = {i == 2 && game_mod_toggles(&mods) == 0 && !launcher_has_settings() ? "Online" : names[i], i, true};
+            tabs[ntabs++] = {i == 2 && game_mod_toggles(&mods) == 0 ? "Online" : names[i], i, true};
     int cur = 0;  // g_tab / g_tab_request hold ids
     for (int i = 0; i < ntabs; i++) if (tabs[i].id == g_tab) cur = i;
     if (!tabs[cur].on) cur = 0;

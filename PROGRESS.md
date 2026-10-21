@@ -174,12 +174,14 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    - a 35-player battle, once Phase 3 works
    - the overlay menu
    Taken from the recomp at 1280x720, kept small (resized PNGs or JPEGs), and checked by the guard as SMM2's were.
-3. ⬜ Overlay menu tabs as in SMM2 (Video, Audio, Controls, Online, Quit), without the SMM2-only Mods tab.
+3. ✅ Overlay menu tabs as in SMM2, without the SMM2-only Mods tab (2026-10-21): Controls, Video, Audio, Online, Quit. The
+   Online tab holds the service and the Nextendo account, then the app's updates and game files.
 4. ⬜ Frame generation (120 fps output): try it on this game's 2D scenes; off by default, as in SMM2.
 5. ⬜ Shader prefetch and the pipeline cache tuned for SM35's shaders.
 6. ⬜ The update check and release notes flow (in place; check it once v0.2.0 exists).
-7. 🔄 Remove the leftover SMM2 course-server code: ✅ `runtime/net/embed_server.*` and its boot call (2026-10-21);
-   ⬜ the mods' `mods.ini` settings in `netcfg` and `runtime/mods.c`.
+7. ✅ Remove the leftover SMM2 course-server code: `runtime/net/embed_server.*` and its boot call (2026-10-21). The
+   settings were already SM35's own (`online.ini`, games/sm35/net.c); netcfg's notes now say so. `runtime/mods.c` stays:
+   it is the generic mod folder (RECOMP_MOD_DIR, a romfs/ tree laid over the game's), not SMM2's mods.
 8. 🔄 ✅ `make test-tools` runs (the SIMD lowering, then the lifter on 2000 of the game's own instructions; 2026-10-21).
    ⬜ A macOS runtime compile job in CI.
 
