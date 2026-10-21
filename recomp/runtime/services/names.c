@@ -129,7 +129,9 @@ static int addrinfo(IpcReq *req, uint32_t *size) {
         put32(&o, (uint32_t)t);                         // SOCK_STREAM / SOCK_DGRAM
         put32(&o, proto ? proto : t == 1 ? 6 : 17);     // IPPROTO_TCP / UDP
         put32(&o, 16);                                  // ai_addrlen
-        put8(&o, 16), put8(&o, 2), put16(&o, port), put32(&o, ip);
+        // [obs] as in gethostbyname below: the library stores the address as a big-endian u32 into in_addr (SM35's
+        // NEX client connected to 194.29.178.51 for 51.178.29.194), so its bytes go in reverse
+        put8(&o, 16), put8(&o, 2), put16(&o, port), put32(&o, (ip >> 24) | (ip >> 8 & 0xff00) | (ip << 8 & 0xff0000) | (ip << 24));
         for (int i = 0; i < 8; i++) put8(&o, 0);
         putstr(&o, node[0] ? node : "");
     }

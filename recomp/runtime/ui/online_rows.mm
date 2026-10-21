@@ -3,6 +3,7 @@
 // sign-in sheet (iOS, runtime/ui/nextendo_ios.mm). Plain C++ here: the same on every platform.
 #include <SDL3/SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "option_rows.h"
 extern "C" {
@@ -27,6 +28,13 @@ static void sign_in(void) {
     char url[1024];
     if (nextendo_begin_sign_in(NULL, url, sizeof url)) SDL_OpenURL(url);  // (failure: the status says why)
 #endif
+}
+
+// RECOMP_NEXTENDO_SIGN_IN=1: start the Nextendo sign-in as the game starts (the browser opens), for a machine where
+// the overlay's key is out of reach (a remote desktop without F1). Signed in already: nothing.
+extern "C" void online_sign_in_at_start(void) {
+    const char *e = getenv("RECOMP_NEXTENDO_SIGN_IN");
+    if (e && *e == '1' && !nextendo_signed_in()) sign_in();
 }
 
 extern "C" void online_rows(void) {
