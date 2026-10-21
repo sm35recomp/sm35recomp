@@ -42,6 +42,16 @@ Service *service_lookup(const char *name) {
 
 void ipc_return_object(IpcResp *resp, Service *s) { resp->objects[resp->nobjects++] = s; }
 
+Service *ipc_in_object(IpcReq *req, int i) {
+    if (req->domain) {
+        uint32_t id = i < req->ndomain_in ? req->domain_in_objs[i] : 0;
+        return id && id < 256 ? req->domain->objs[id] : NULL;
+    }
+    uint32_t h = i < req->ncopy ? req->copy_handles[i] : i - req->ncopy < req->nmove ? req->move_handles[i - req->ncopy] : 0;
+    KObject *o = h ? handle_get(h) : NULL;
+    return o && o->type == KOBJ_SESSION ? ((KSession *)o)->svc : NULL;
+}
+
 static uint32_t session_new(Service *s) {
     KSession *k = calloc(1, sizeof *k);
     k->obj.type = KOBJ_SESSION;
@@ -157,6 +167,7 @@ int ipc_handle_request(Cpu *c, uint32_t handle) {
                 goto write_response;
             }
             req.ndomain_in = nin;
+            req.domain = sess->domain;
             for (int i = 0; i < nin; i++) req.domain_in_objs[i] = *(uint32_t *)(payload + 16 + dsize + 4 * i);
             payload += 16;
         }

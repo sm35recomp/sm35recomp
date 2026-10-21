@@ -19,6 +19,7 @@ typedef struct IpcReq {
     uint32_t domain_obj;  // 0 if not a domain message
     uint32_t domain_in_objs[8];
     int ndomain_in;
+    struct Domain *domain;  // the session's domain (domain messages), for ipc_in_object
 } IpcReq;
 
 typedef struct Service Service;
@@ -43,7 +44,7 @@ struct Service {
     void (*on_close)(Service *s);  // optional: the last of them closed (stop threads, free state)
 };
 
-typedef struct {
+typedef struct Domain {
     Service *objs[256];
 } Domain;
 
@@ -73,6 +74,8 @@ static inline IpcBuf *in_buf(IpcReq *req, int i) {
 Service *service_new(const char *name, ServiceHandler h, void *state);
 Service *service_lookup(const char *name);  // from the registry (services/*.c)
 void ipc_return_object(IpcResp *resp, Service *s);
+// The i-th object passed in (an IStorage handed to PushInData...): a domain object id, else a session handle; NULL: none
+Service *ipc_in_object(IpcReq *req, int i);
 
 typedef struct { const char *name; ServiceHandler handler; } ServiceDef;
 #ifdef __APPLE__

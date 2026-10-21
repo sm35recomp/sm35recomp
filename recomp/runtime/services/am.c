@@ -37,6 +37,15 @@ static uint32_t new_event(void) {
     return r;
 }
 
+static uint32_t new_signaled_event(void) {
+    uint32_t w, r;
+    KEvent *e = kernel_create_event_pair(&w, &r);
+    pthread_mutex_lock(&g_klock);
+    kernel_signal(e);
+    pthread_mutex_unlock(&g_klock);
+    return r;
+}
+
 #define UNHANDLED(iface) LOG("[am] %s cmd %u (unhandled, ok)\n", iface, req->cmd)
 
 static void common_state_getter(Service *s, IpcReq *req, IpcResp *resp) {
@@ -73,7 +82,7 @@ static void self_controller(Service *s, IpcReq *req, IpcResp *resp) {
     (void)s;
     switch (req->cmd) {
     case 0: LOG("[am] application requested exit\n"); exit(0);
-    case 9: resp->copy_handles[resp->ncopy++] = new_event(); break;
+    case 9: resp->copy_handles[resp->ncopy++] = new_signaled_event(); break;  // GetLibraryAppletLaunchableEvent
     case 40: OUT(uint64_t, 0) = 1; resp_size(resp, 8); break;  // CreateManagedDisplayLayer
     case 69: OUT(uint8_t, 0) = 0; resp_size(resp, 1); break;
     default: UNHANDLED("ISelfController");
@@ -133,6 +142,84 @@ static Service *new_am_storage(const void *data, uint64_t size) {
     return service_new("IStorage", am_storage, st);
 }
 
+// ------------------------------------------------------------------ library applets
+// ILibraryAppletCreator / ILibraryAppletAccessor: an applet the game launches ends at once, with no output. The error
+// applet (0x0E: the system's error dialog) shows its message as a notice over the game (runtime/ui/menu.mm) instead:
+// the game waits for it (Super Mario Bros. 35 froze on the matching screen when Nextendo refused a login).
+// The error applet's argument [obs: Ryujinx ErrorApplet, MIT]: a common header (type u8, ..., message flag at 6), then
+// type 0 (ErrorCommonArg) module u32 @8, description u32 @12, result u32 @16 (used when the message flag is 0);
+// type 2 (ApplicationErrorArg) error number u32 @8, the dialog message (UTF-8, 0x800) @0x14.
+#define APPLET_ERROR 0x0E
+
+typedef struct { uint32_t id; bool started; } AmApplet;
+
+static void error_notice(const uint8_t *a, uint64_t n) {
+    extern void menu_notice(const char *text, double seconds);
+    char t[600] = "";
+    if (n >= 20 && a[0] == 0) {
+        uint32_t module = *(const uint32_t *)(a + 8), desc = *(const uint32_t *)(a + 12), res = *(const uint32_t *)(a + 16);
+        if (!a[6]) module = (res & 0x1FF) + 2000, desc = (res >> 9) & 0x3FFF;
+        snprintf(t, sizeof t, "The game reports error %04u-%04u.", module, desc);
+    } else if (n >= 0x14 + 1 && a[0] == 2) {
+        char msg[0x200];
+        snprintf(msg, sizeof msg, "%.*s", (int)(n - 0x14 < sizeof msg - 1 ? n - 0x14 : sizeof msg - 1), (const char *)a + 0x14);
+        snprintf(t, sizeof t, "The game reports error %u: %s", *(const uint32_t *)(a + 8), msg);
+    } else {
+        snprintf(t, sizeof t, "The game reports an error (type %u).", n ? a[0] : 0);
+    }
+    LOG("[am] error applet: %s\n", t);
+    char full[800];
+    snprintf(full, sizeof full, "%s If it's an online error: check that you're online and that your Nextendo account "
+             "can play (a verified e-mail on nextendo.network).", t);
+    menu_notice(full, 10);
+}
+
+static void applet_accessor(Service *s, IpcReq *req, IpcResp *resp) {
+    AmApplet *ap = s->state;
+    switch (req->cmd) {
+    case 0: resp->copy_handles[resp->ncopy++] = new_signaled_event(); break;  // GetAppletStateChangedEvent: ended
+    case 1: OUT(uint8_t, 0) = 1; resp_size(resp, 1); break;                     // IsCompleted
+    case 10: ap->started = true; break;                                         // Start
+    case 20: case 25: break;                                                    // RequestExit, Terminate
+    case 30: break;                                                             // GetResult: success
+    case 100: case 103: {  // PushInData / PushInteractiveInData(IStorage)
+        Service *st = ipc_in_object(req, 0);
+        if (st && st->handler == am_storage && ap->id == APPLET_ERROR) {
+            AmStorage *d = st->state;
+            if (d->size >= 8 && d->data[0] <= 8 && d->size != 0x20) error_notice(d->data, d->size);  // (0x20: the common arguments)
+        }
+        break;
+    }
+    case 101: case 104: resp->result = AM_NO_DATA; break;                      // PopOutData / PopInteractiveOutData
+    case 105: case 106: resp->copy_handles[resp->ncopy++] = new_event(); break; // Get(Interactive)OutDataEvent
+    default: LOG("[am] ILibraryAppletAccessor (applet %#x) cmd %u (ok)\n", ap->id, req->cmd);
+    }
+}
+
+static void library_applet_creator(Service *s, IpcReq *req, IpcResp *resp) {
+    (void)s;
+    switch (req->cmd) {
+    case 0: {  // CreateLibraryApplet(applet id, mode)
+        AmApplet *ap = calloc(1, sizeof *ap);
+        ap->id = IN(uint32_t, 0);
+        LOG("[am] library applet %#x (mode %u): ends at once\n", ap->id, IN(uint32_t, 4));
+        ipc_return_object(resp, service_new("ILibraryAppletAccessor", applet_accessor, ap));
+        break;
+    }
+    case 10: {  // CreateStorage(size)
+        int64_t n = IN(int64_t, 0);
+        ipc_return_object(resp, new_am_storage(NULL, n > 0 && n < (1 << 24) ? (uint64_t)n : 0));
+        break;
+    }
+    case 11: {  // CreateTransferMemoryStorage(writable, size, handle): a copy-less stand-in of that size
+        int64_t n = IN(int64_t, 8);
+        ipc_return_object(resp, new_am_storage(NULL, n > 0 && n < (1 << 24) ? (uint64_t)n : 0));
+        break;
+    }
+    default: UNHANDLED("ILibraryAppletCreator");
+    }
+}
+
 extern const uint8_t g_user_id[16];
 
 static void application_functions(Service *s, IpcReq *req, IpcResp *resp) {
@@ -178,7 +265,7 @@ static void application_proxy(Service *s, IpcReq *req, IpcResp *resp) {
         {3, "IAudioController", generic_ok},
         {4, "IDisplayController", generic_ok},
         {10, "IProcessWindingController", generic_ok},
-        {11, "ILibraryAppletCreator", generic_ok},
+        {11, "ILibraryAppletCreator", library_applet_creator},
         {20, "IApplicationFunctions", application_functions},
         {1000, "IDebugFunctions", generic_ok},
     };
