@@ -548,6 +548,15 @@ def main():
             if any(m.words[j] & 0xFFFFFC1F == 0xD61F0000 and (m.words[j] >> 5) & 31 == rd
                    for j in range(i + 1, min(i + 7, len(m.words)))):
                 continue
+            # (the same with the moves for the cases' arguments scheduled between: `adr xR, base ; ldrb wI, [table] ;
+            # add xR, xR, xI, lsl #2 ; mov ... ; br xR`, eight or more instructions apart. SMB35's handler for the
+            # 35-player relay's messages, main+0xb500, has five moves there; its 25 cases were cut off and the
+            # first message of a match jumped to a case the recompiler had never seen.)
+            win = range(i + 1, min(i + 17, len(m.words)))
+            if any((m.words[j] & 0xFFE0FC00) == 0x8B000800 and (m.words[j] >> 5) & 31 == rd and m.words[j] & 31 == rd
+                   for j in win) and any(m.words[j] & 0xFFFFFC1F == 0xD61F0000 and (m.words[j] >> 5) & 31 == rd
+                                          for j in win):
+                continue
             if m.in_text(pc + imm):
                 start_set.add(pc + imm)
         elif (w & 0x9F000000) == 0x90000000:  # ADRP
