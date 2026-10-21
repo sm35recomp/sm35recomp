@@ -66,9 +66,12 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 1. 🔄 Course Practice: 1-1 starts and plays (run, scroll, Goombas, Game Over, retry). Every course starts, plays and
    clears; saving works (`save/save_0`).
 2. 🔄 Rendering in courses. ✅ Bindless textures on Metal (the sprite shader takes each sprite's texture handle from
-   its vertices: the course was black). 🔄 The same in the Vulkan / GLSL path (Windows, Linux, Android): built, the
-   shader compiles to SPIR-V; not run on a GPU yet. ⬜ Go
-   through every course theme (overworld, underground, castle, water, the 8-4 style ones); check the
+   its vertices: the course was black). ✅ The same in the Vulkan / GLSL path, run (2026-10-21): the Linux arm64 build
+   in Docker under Mesa's lavapipe plays Course Practice 1-1 at 60 fps. That run found and fixed: shader global
+   memory went through one storage-buffer binding over the 3.2 GB heap, which reaches only maxStorageBufferRange of
+   it (128 MB on lavapipe and Adreno), so the course cards' text was blank; now through the heap's device address
+   (bufferDeviceAddress). ⬜ A real GPU on Windows / Linux. ⬜ Go
+   through every course theme (only 1-1 is open in Course Practice; the rest open as they are met in battles) (overworld, underground, castle, water, the 8-4 style ones); check the
    35-player screen layout (the other players' small screens around the main one).
 3. 🔄 Audio: mixed, not yet confirmed by ear (2026-10-21, Course Practice with `LARECOMP_AUDIO_LOG=1`): the music
    streams as stereo DSP ADPCM at 44.1 kHz (two voices), and up to 18 sound-effect voices play ADPCM at 32 kHz, all
@@ -106,7 +109,16 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      `RECOMP_NET_HEX=<file>` dumps every TLS payload.
    - ✅ **A two-player match played through** (2026-10-21, relay room 349, Mac + iPad build 31, released as v0.2.1):
      course 1-1, both players, the Ranking screen with the same result on both (coins 200 / 180), Rematch offered.
-3. 🔄 A full match: ✅ start to the Ranking screen with two players. ⬜ A longer one by hand: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
+3. 🔄 A full match: ✅ start to the Ranking screen with two players (personal result, Level Up, Ranking; A moves on).
+   🔄 **The Ranking screen ignores Main Menu (B) and Rematch (A)**, and Matching ignores Cancel (B); reproduced with
+   the Mac alone (the controls are read and the game reacts, then waits). Finding: Nextendo never answers the game's
+   MessageDelivery::DeliverMessage calls (protocol 27, method 1: the host's lobby messages); it only forwards each
+   message back as a request with the same call id. kinnay's SMB35 server forwards and then returns success. The host
+   needs the forward too (it starts the round once its own "close_participation" comes back), so replacing the
+   forward with a response stopped rounds starting, and appending the response to the same packet stalled the game.
+   A client-side fix needs an injected packet with every later sequence number renumbered; better fixed by Nextendo
+   (report drafted). The iPad (not the host) sticks as well, so there may be a second cause.
+   ⬜ A longer match by hand: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
    and XP awarded.
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
 5. ⬜ Robustness: latency and packet loss (the SDK's own network emulator can help), a reconnect after a drop, the
@@ -133,7 +145,8 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      extended virtual addressing and the increased memory limit. If a free account can't, the kit needs a paid
      developer account, or a lower guest window and less memory.
    - The release workflow attaches the APK and the iOS kit; `check_package.py` covers both.
-6. ⬜ Android (owner has no device): the emulator first, a real device when one is available.
+6. 🔄 Android (owner has no device): ✅ the APK builds (a private test build with the game code; 2026-10-21). ⬜ The
+   emulator: its system image needs about 8 GB of disk, and the SSD has 3.7 GB free. ⬜ A real device.
 7. ⬜ Web (wasm + WebGPU), for the owner's own use on their machine or LAN only, as decided for SMM2. Feasibility after
    the native ports.
 
@@ -178,7 +191,7 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 |---|---|---|---|
 | macOS arm64 (Metal) | ✅ | ✅ Course Practice on Nextendo | ✅ v0.1.0 |
 | Windows x86-64 (Vulkan) | ✅ CI | ⬜ | ✅ v0.1.0 (untested) |
-| Linux x86-64 / arm64 (Vulkan) | ✅ CI | ⬜ | ✅ v0.1.0 (untested) |
+| Linux x86-64 / arm64 (Vulkan) | ✅ CI | ✅ arm64 under lavapipe (Docker) | ✅ v0.1.0 (untested on a GPU) |
 | iOS / iPadOS (Metal) | ✅ signed for the owner's iPad | ⏳ iPad offline | ⬜ the IPA kit |
 | Android arm64 (Vulkan) | ⬜ | ⬜ | ⬜ launcher-only APK |
 | Web | ⬜ | ⬜ | (local use only) |
