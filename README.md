@@ -13,10 +13,18 @@ emulator: there is no CPU or GPU emulation at run time.
 
 It is a fork of [SMM2 Recomp](https://github.com/smm2recomp/smm2recomp), which shares its runtime and recompiler.
 
-> **Status: early, and online again.** The game's online service comes from [Nextendo Network](https://nextendo.network),
-> a community server (never Nintendo's). Signed in to Nextendo, Course Practice plays, Special Battle is back, and
-> 35-Player Battles play through to the final ranking (tested with two players, a Mac and an iPad). Two players on the
-> same home internet connection can't share a match yet. See [PROGRESS.md](PROGRESS.md).
+> **Status: online through Nextendo, and reasonably stable.** The game's online service comes from
+> [Nextendo Network](https://nextendo.network), a community server (never Nintendo's). Sign-in, the game's login,
+> 35-Player Battle matchmaking, the battle relay and the results are implemented. Course Practice, Special Battle and
+> Daily Challenges work.
+>
+> **Tested by us:** two-player matches from Matching to the final Ranking (a Mac and an iPad), Cancel, dropped
+> connections, and the macOS and iPad builds. **Left to testers:** long matches with many players, and Windows and
+> Linux on real hardware ([Reporting problems](#reporting-problems)).
+>
+> Two things to know. **Cancel, Main Menu and Rematch are held, not tapped**: hold the button for about a second.
+> **One device per internet connection**: two devices on the same home connection can't share a match. See
+> [PROGRESS.md](PROGRESS.md).
 
 ## Screenshots
 
