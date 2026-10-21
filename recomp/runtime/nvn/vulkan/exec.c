@@ -2252,6 +2252,47 @@ static VkDescriptorBufferInfo gmem_desc(void) {
     return (VkDescriptorBufferInfo){s.buf, s.off, sizeof ab};
 }
 
+// Draw stages without a direct path to the heap (maxwell_glsl_gmap_gfx): the stage's bound storage buffers are copied
+// from guest memory into this draw's transient memory, and the table (binding GMAP_BUFFER_INDEX) says where each one
+// sits - the compute fast path's scheme, filled by the CPU. SM35's course cards draw one letter per instance from
+// such a buffer; without it they came out blank on the Android emulator (no host memory import).
+static uint32_t gx_tab[(GMAP_MAX + 1) * 4];
+static VkDescriptorBufferInfo gx_fast;
+static VkDescriptorBufferInfo gfast_info(void);
+static void gfx_gmap(int stage) {
+    memset(gx_tab, 0, sizeof gx_tab);
+    struct { uint64_t lo, hi; } r[16];
+    int n = 0;
+    for (int i = 0; i < 16; i++) {
+        uint64_t a = st.sbuf[stage][i].addr, sz = st.sbuf[stage][i].size;
+        if (!a || !sz || a < HEAP_BASE || a - HEAP_BASE + sz > HEAP_MAX || sz > (8u << 20)) continue;
+        uint64_t lo = (a - HEAP_BASE) & ~255ull, hi = (a - HEAP_BASE + sz + 255) & ~255ull;
+        int k = n++;
+        while (k > 0 && r[k - 1].lo > lo) { r[k] = r[k - 1]; k--; }
+        r[k].lo = lo; r[k].hi = hi;
+    }
+    int m = 0;
+    for (int i = 0; i < n; i++) {
+        if (m && r[i].lo <= r[m - 1].hi + 4096) { if (r[i].hi > r[m - 1].hi) r[m - 1].hi = r[i].hi; }
+        else r[m++] = r[i];
+    }
+    uint64_t total = 0;
+    for (int i = 0; i < m; i++) total += (r[i].hi - r[i].lo + 255) & ~255ull;
+    if (!m || m > GMAP_MAX || total > (16u << 20)) { gx_fast = gfast_info(); return; }  // (nothing / too much: none)
+    VkSpan sp = vk_transient(total, 256);
+    uint64_t off = 0;
+    for (int i = 0; i < m; i++) {
+        uint64_t len = r[i].hi - r[i].lo;
+        memcpy((uint8_t *)sp.ptr + off, (const void *)(uintptr_t)(HEAP_BASE + r[i].lo), len);
+        gx_tab[i * 4 + 0] = (uint32_t)r[i].lo;
+        gx_tab[i * 4 + 1] = (uint32_t)len;
+        gx_tab[i * 4 + 2] = (uint32_t)(off >> 2);
+        off += (len + 255) & ~255ull;
+    }
+    gx_tab[GMAP_MAX * 4] = (uint32_t)m;
+    gx_fast = (VkDescriptorBufferInfo){sp.buf, sp.off, total};
+}
+
 static VkDescriptorBufferInfo gfast_info(void) {
     if (!gfast_buf) {
         VkBufferCreateInfo bi = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = GFAST_SIZE,
@@ -2650,6 +2691,8 @@ static VkDescriptorSet stage_set(Prog *p, VkDescriptorSetLayout layout, uint32_t
     float rs[66][4] = {{1, 1, 0, 0}};  // ([65]: mirror mode, renderer.m)
     if (rscale_row0) memcpy(rs[0], rscale_row0, 16);
     rs[65][0] = g_mirror_w;
+    bool gx_stage = stage != 5 && si->uses_gmem_map;  // (a draw stage on the per-draw copies: gfx_gmap)
+    if (gx_stage) gfx_gmap(stage);
     for (int i = 0; i < p->nbinds; i++) {
         VkBindingInfo *b = &p->binds[i];
         if (b->set != set) continue;
@@ -2674,7 +2717,7 @@ static VkDescriptorSet stage_set(Prog *p, VkDescriptorSetLayout layout, uint32_t
                 gpu_read_mark(st.sbuf[stage][k].addr, st.sbuf[stage][k].size);
                 if (stage == 5) gpu_read_mark(st.ubuf[5][k].addr, st.ubuf[5][k].size);
             }
-            bi[n] = b->binding == GFAST_BUFFER_INDEX ? gfast_info() : gmem_desc();
+            bi[n] = b->binding == GFAST_BUFFER_INDEX ? (gx_stage ? gx_fast : gfast_info()) : gmem_desc();
             w[n].pBufferInfo = &bi[n];
         } else {
             continue;  // rscale / tint: written below, once the textures (and their scales) are known
@@ -2687,8 +2730,9 @@ static VkDescriptorSet stage_set(Prog *p, VkDescriptorSetLayout layout, uint32_t
             (b->binding != 18 && b->binding != 19 && b->binding != GMAP_BUFFER_INDEX && b->binding != BINDLESS_TABLE_INDEX)) continue;
         w[n] = (VkWriteDescriptorSet){.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = ds, .dstBinding = b->binding,
                                       .descriptorCount = 1, .descriptorType = b->type};
-        if (b->binding == GMAP_BUFFER_INDEX) {  // (compute) this dispatch's fast-copy table: gfast_prepare
-            bi[n] = ubo_span(vk_transient_copy(gmap_tab, sizeof gmap_tab, 256), sizeof gmap_tab);
+        if (b->binding == GMAP_BUFFER_INDEX) {  // this dispatch's fast-copy table (gfast_prepare), or the draw's (gfx_gmap)
+            bi[n] = gx_stage ? ubo_span(vk_transient_copy(gx_tab, sizeof gx_tab, 256), sizeof gx_tab)
+                             : ubo_span(vk_transient_copy(gmap_tab, sizeof gmap_tab, 256), sizeof gmap_tab);
         } else if (b->binding == BINDLESS_TABLE_INDEX) {  // the draw's bindless handles (uvec4 bltab[2])
             bi[n] = ubo_span(vk_transient_copy(bl_handles, sizeof bl_handles, 256), sizeof bl_handles);
         } else if (b->binding == 18) {

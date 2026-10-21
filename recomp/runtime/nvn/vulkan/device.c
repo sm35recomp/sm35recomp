@@ -213,8 +213,8 @@ static void create_device(void) {
     VkDeviceCreateInfo di = {.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, .pNext = &f, .queueCreateInfoCount = 1,
                              .pQueueCreateInfos = &qi, .enabledExtensionCount = n_ext, .ppEnabledExtensionNames = ext};
     VK_CHECK(vkCreateDevice(g_vk.phys, &di, NULL, &g_vk.dev));
-    { extern bool maxwell_glsl_bda; maxwell_glsl_bda = g_vk.bda; }
-    LOG("[vk] shader global memory: %s\n", g_vk.bda ? "buffer device address" : "storage buffer binding");
+    { extern bool maxwell_glsl_bda, maxwell_glsl_gmap_gfx; maxwell_glsl_bda = g_vk.bda; maxwell_glsl_gmap_gfx = !g_vk.bda; }
+    LOG("[vk] shader global memory: %s\n", g_vk.bda ? "buffer device address" : "per-draw copies of the storage buffers");
     vkGetDeviceQueue(g_vk.dev, g_vk.qfam, 0, &g_vk.queue);
 
     VmaAllocatorCreateInfo ai = {.physicalDevice = g_vk.phys, .device = g_vk.dev, .instance = g_vk.inst,
