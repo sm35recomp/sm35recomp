@@ -21,6 +21,34 @@ extern "C" void nextendo_ios_sign_in(void);  // runtime/ui/nextendo_ios.mm
 
 extern "C" bool online_rows_available(void) { return true; }
 
+// The game asked to go online and the runtime is offline (runtime/services/nifm.c): say why and what to do, at most
+// every 20 s
+extern "C" void menu_notice(const char *text, double seconds);
+extern "C" void rt_log(const char *fmt, ...);
+#define LOG_NOTICE(t) rt_log("[online] notice: %s\n", t)
+extern "C" void online_offline_notice(void) {
+    static Uint64 last;
+    Uint64 now = SDL_GetTicks();
+    if (last && now - last < 20000) return;
+    last = now;
+#ifdef NX_SHEET
+    const char *menu = "the menu button (top right)";
+#else
+    const char *menu = "the menu (F1)";
+#endif
+    char t[400];
+    if (nextendo_signed_in() && net_backend_setting() != NET_BACKEND_NEXTENDO)
+        snprintf(t, sizeof t, "You're offline: the Service setting is not Nextendo. Open %s, Online, choose Nextendo, "
+                 "then restart the game.", menu);
+    else if (nextendo_signed_in())
+        snprintf(t, sizeof t, "You're signed in to Nextendo. Restart the game to go online.");
+    else
+        snprintf(t, sizeof t, "You're offline. The game needs its online service, even for Course Practice: open %s, "
+                 "Online, and sign in to Nextendo Network.", menu);
+    LOG_NOTICE(t);
+    menu_notice(t, 8);
+}
+
 static void sign_in(void) {
 #ifdef NX_SHEET
     nextendo_ios_sign_in();

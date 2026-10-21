@@ -49,7 +49,12 @@ static void request(Service *s, IpcReq *req, IpcResp *resp) {
         resp->copy_handles[resp->ncopy++] = r->ev1;
         break;
     }
-    case 3: case 4: case 11: break;  // Cancel, Submit, SetConnectionConfirmationOption
+    case 4: {  // Submit: the game wants the network; offline, the player hears why (runtime/ui/online_rows.mm)
+        extern void online_offline_notice(void);
+        online_offline_notice();
+        break;
+    }
+    case 3: case 11: break;  // Cancel, SetConnectionConfirmationOption
     case 21: resp->result = NIFM_UNKNOWN180; break;  // GetAppletInfo: no applet to show
     default: LOG("[nifm] IRequest cmd %u (ok)\n", req->cmd); resp_size(resp, 0x10);
     }
