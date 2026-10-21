@@ -402,6 +402,20 @@ void input_frame(uint64_t frame) {
     watch_arm();
     host_test_frame(frame);
     padscript_frame();  // the presented-frame clock (RECOMP_PAD_CLOCK=frame, RECOMP_FRAME_SHOT)
+    {   // RECOMP_PEEK=<off>[,<len>]: every 30 frames, <len> bytes (default 16) at x0 + <off> of the first function
+        // LARECOMP_FNPROF_BT names (fnprof.c g_bt_first_x0): a game object's state, watched while it runs
+        static long poff = -1, plen = 16;
+        static uint64_t pn;
+        if (poff == -1) { const char *e = getenv("RECOMP_PEEK"); poff = e ? strtol(e, (char **)&e, 0) : -2; if (e && *e == ',') plen = strtol(e + 1, NULL, 0); }
+        extern uint64_t g_bt_first_x0;
+        if (poff >= 0 && g_bt_first_x0 && pn++ % 30 == 0 && plen > 0 && plen <= 64) {
+            const uint8_t *q = (const uint8_t *)(uintptr_t)(g_bt_first_x0 + (uint64_t)poff);
+            char hx[200];
+            int o = 0;
+            for (long i = 0; i < plen; i++) o += snprintf(hx + o, sizeof hx - o, "%02x%s", q[i], (i & 3) == 3 ? " " : "");
+            LOG("[peek] %llx+%#lx: %s\n", (unsigned long long)g_bt_first_x0, poff, hx);
+        }
+    }
     {
         static const char *fs;
         static int init;
