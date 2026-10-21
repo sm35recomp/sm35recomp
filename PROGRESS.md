@@ -70,7 +70,10 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    shader compiles to SPIR-V; not run on a GPU yet. ⬜ Go
    through every course theme (overworld, underground, castle, water, the 8-4 style ones); check the
    35-player screen layout (the other players' small screens around the main one).
-3. ⬜ Audio: BGM streams (`.bfstm`), sound effects, Opus voice/stream decoding. `hwopus` is a logging stub today.
+3. 🔄 Audio: mixed, not yet confirmed by ear (2026-10-21, Course Practice with `LARECOMP_AUDIO_LOG=1`): the music
+   streams as stereo DSP ADPCM at 44.1 kHz (two voices), and up to 18 sound-effect voices play ADPCM at 32 kHz, all
+   through `audren` (SMM2's renderer). The game asks `hwopus` only for a work-buffer size at start and never opens a
+   decoder, so the stub is enough so far. ⬜ The owner listens on the Mac and the iPad; ⬜ the 35-player battle's sounds.
 4. 🔄 Input: ✅ the left stick also presses the d-pad (the game walks only with the d-pad here; the iPad's touch stick
    and controllers did nothing). ⬜ Every button the game uses (item roulette with R, targeting with L or the right stick, touch on handheld
    screens), rumble, gyro (the SDK reads six-axis: check it's harmless).
