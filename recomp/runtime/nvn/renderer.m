@@ -763,6 +763,7 @@ static int cbuf_base = 3, tex_base = 8;
     _Atomic int state;         // BUILD_PENDING / READY (vs, fs set) / FAILED (buildsync.h)
     NSMutableArray *waiting;   // pipelines the prefetch scan asked for before the program was ready (@synchronized)
     uint64_t vs_code;
+    int bl_in;                 // bindless (ShaderInfo.uses_bindless): the vertex input the handles come from (0x80 + 16 n + 4 c)
 }
 @end
 @implementation Prog
@@ -1489,7 +1490,25 @@ static Prog *get_program(NvnProgram *p, ShaderKey *vkey, ShaderKey *fkey) {
     }
     fkey->vs_out_mask = pr->vi->out_mask;
     pr->fi = maxwell_translate((const uint8_t *)(uintptr_t)p->stages[1].code_addr, fmax, STAGE_FRAGMENT, fkey);
-    if (!pr->fi->msl) { LOG("[shader] FS translate failed: %s\n", pr->fi->error); atomic_store(&pr->state, BUILD_FAILED); return nil; }
+    if (!pr->fi->msl) {
+        LOG("[shader] FS translate failed: %s (code %llx)\n", pr->fi->error, p->stages[1].code_addr);
+        char path[128];  // (as the VS's)
+        mkdir("build/shaders", 0755);
+        snprintf(path, sizeof path, "build/shaders/fail_%llx_s1_code.bin", p->stages[1].code_addr);
+        FILE *f = fopen(path, "wb");
+        if (f) { fwrite((void *)(uintptr_t)p->stages[1].code_addr, 1, 0x4000, f); fclose(f); }
+        atomic_store(&pr->state, BUILD_FAILED);
+        return nil;
+    }
+    if (pr->fi->uses_bindless) {  // its handles: a vertex input the vertex shader passes through (maxwell/shader.h)
+        pr->bl_in = maxwell_vs_passthrough((const uint8_t *)(uintptr_t)p->stages[0].code_addr, vmax, (uint32_t)pr->fi->bl_attr);
+        if (pr->bl_in < 0x80 || pr->gi) {
+            LOG("[shader] FS %llx: bindless handles from varying %#x, not a vertex input passed through\n",
+                p->stages[1].code_addr, pr->fi->bl_attr);
+            atomic_store(&pr->state, BUILD_FAILED);
+            return nil;
+        }
+    }
     if (getenv("LARECOMP_SAVE_MSL")) {
         mkdir("build/msl", 0755);
         char path[256];
@@ -1769,12 +1788,71 @@ static void resolve_feedback(Prog *pr) {
         }
 }
 
+// Bindless (maxwell/shader.h): the handles this draw's vertices carry, in the program's bindless slots; 0 = none
+static uint32_t bl_handles[BINDLESS_SLOTS];
+
+static int vformat_comp_bytes(MTLVertexFormat f) {
+    switch (f) {
+    case MTLVertexFormatUInt: case MTLVertexFormatUInt2: case MTLVertexFormatUInt3: case MTLVertexFormatUInt4:
+    case MTLVertexFormatInt: case MTLVertexFormatInt2: case MTLVertexFormatInt3: case MTLVertexFormatInt4:
+    case MTLVertexFormatFloat: case MTLVertexFormatFloat2: case MTLVertexFormatFloat3: case MTLVertexFormatFloat4:
+        return 4;
+    default: return 0;
+    }
+}
+
+// Collect the distinct handles in the draw's vertices (vertex input pr->bl_in) into bl_handles
+static void bindless_gather(CmdRec *r, bool indexed, Prog *pr) {
+    memset(bl_handles, 0, sizeof bl_handles);
+    int n = (pr->bl_in - 0x80) / 16, comp = (pr->bl_in & 15) / 4;
+    uint32_t a = n < st.nattrib ? st.attrib[n] : 0;
+    uint32_t fmt = a & 0xFF, stream = (a >> 8) & 0x1F, off = a >> 13;
+    static int warned;
+    if (!fmt || stream >= 12 || vformat_comp_bytes(vertex_format(fmt)) != 4) {
+        if (!warned++) LOG("[bindless] handle attribute %d: format %#x not 32-bit (no textures)\n", n, fmt);
+        return;
+    }
+    Range v = st.vbuf[stream];
+    uint32_t stride = stream < (uint32_t)st.nstream ? st.stream[stream][0] : 0, div = stream < (uint32_t)st.nstream ? st.stream[stream][1] : 0;
+    if (!v.addr) return;
+    const uint8_t *src = (const uint8_t *)(uintptr_t)v.addr;
+    uint32_t count = (uint32_t)r->x[2], nh = 0, overflow = 0;
+    uint32_t inst = indexed ? (uint32_t)r->x[6] : (uint32_t)r->x[4], base_inst = indexed ? (uint32_t)r->x[5] : (uint32_t)r->x[3];
+    if (!inst) inst = 1;
+    uint32_t total = (!stride || div) ? (stride ? inst : 1) : count;
+    if (total > 65536) total = 65536;
+    for (uint32_t i = 0; i < total; i++) {
+        uint64_t id;
+        if (!stride) id = 0;
+        else if (div) id = (base_inst + i) / div;
+        else if (!indexed) id = (uint32_t)r->x[1] + i;
+        else {
+            uint32_t itype = (uint32_t)r->x[1];
+            const uint8_t *ip = (const uint8_t *)(uintptr_t)r->x[3];
+            id = (uint32_t)((int32_t)(itype == 0 ? ip[i] : itype == 1 ? ((const uint16_t *)ip)[i] : ((const uint32_t *)ip)[i]) + (int32_t)r->x[4]);
+        }
+        uint64_t at = id * stride + off + 4u * (uint32_t)comp;
+        if (v.size && at + 4 > v.size) continue;
+        uint32_t h;
+        memcpy(&h, src + at, 4);
+        if (!h) continue;
+        uint32_t k = 0;
+        while (k < nh && bl_handles[k] != h) k++;
+        if (k < nh) continue;
+        if (nh < BINDLESS_SLOTS) bl_handles[nh++] = h;
+        else overflow++;
+    }
+    static int warned_over;
+    if (overflow && warned_over++ < 5) LOG("[bindless] a draw uses more than %d textures: some drawn without\n", BINDLESS_SLOTS);
+}
+
 static void bind_textures(int stage, ShaderInfo *si) {
     if (stage == 1) draw_bottle = draw_heart = 0, draw_item_cursor = false;
     for (int i = 0; i < si->ntex; i++) {
         ShaderTexture *st_ = &si->tex[i];
         int slot = ((int)st_->handle_offset - 0x20) / 8;  // 64-bit handles from offset 0x20
         uint64_t h = (slot >= 0 && slot < 32) ? st.tex[stage][slot] : 0;
+        if (st_->bindless) slot = -1, h = st_->bindless_offset < BINDLESS_SLOTS ? bl_handles[st_->bindless_offset] : 0;
         id<MTLTexture> tex = nil;
         id<MTLSamplerState> smp = nil;
         uint32_t tic = h & 0xFFFFF, tsc = (uint32_t)(h >> 20) & 0xFFF;
@@ -2691,6 +2769,10 @@ static void draw(CmdRec *r, bool indexed) {
     if (pr->fi->uses_gmem) [enc setFragmentBuffer:g_guest_buffer offset:0 atIndex:GMEM_BUFFER_INDEX];
     void *enc_before_tex = (__bridge void *)enc;
     bind_textures(0, pr->vi);
+    if (pr->fi->uses_bindless) {
+        bindless_gather(r, indexed, pr);
+        [enc setFragmentBytes:bl_handles length:sizeof bl_handles atIndex:BINDLESS_TABLE_INDEX];
+    }
     bind_textures(1, pr->fi);
     if (g_debug_frame && enc_before_tex != (__bridge void *)enc) LOG("[draw] encoder changed while binding textures\n");
     extern bool pets_hide_item_cursor(void);  // (the cursor is on the companion card: runtime/hle/pets.c)

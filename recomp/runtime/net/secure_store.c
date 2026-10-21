@@ -1,6 +1,6 @@
 // The file backend of the secret store (runtime/net/secure_store.h): net/nextendo.txt, one "key value" line per
-// entry, written to a temporary file (mode 0600) and renamed over, so a crash never leaves half a file. On Apple the
-// Keychain is the default; RECOMP_SECURE_STORE=file selects this one.
+// entry, written to a temporary file (mode 0600) and renamed over, so a crash never leaves half a file. iOS uses the
+// Keychain instead (below).
 #include "secure_store.h"
 
 #include <stdio.h>
@@ -96,9 +96,15 @@ static void file_del(const char *key) {
 }
 
 #ifdef __APPLE__
+#include <TargetConditionals.h>
+// iOS: the Keychain (the app's own, sandboxed: no prompts). macOS: the file, as on Windows and Linux - the app is
+// signed ad hoc, so every update (a new signature) would make macOS ask the player to allow the Keychain item again,
+// and a run waits on that dialog. RECOMP_SECURE_STORE=file / keychain picks one.
 static bool use_file(void) {
     const char *v = getenv("RECOMP_SECURE_STORE");
-    return v && !strcmp(v, "file");
+    if (v && !strcmp(v, "file")) return true;
+    if (v && !strcmp(v, "keychain")) return false;
+    return !TARGET_OS_IOS;
 }
 bool secure_get(const char *key, char *out, size_t cap) { return use_file() ? file_get(key, out, cap) : secure_apple_get(key, out, cap); }
 bool secure_set(const char *key, const char *val) { return use_file() ? file_set(key, val) : secure_apple_set(key, val); }

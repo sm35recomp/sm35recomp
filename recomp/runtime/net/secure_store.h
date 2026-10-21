@@ -1,6 +1,6 @@
-// A tiny secret store for the Nextendo sign-in (nextendo.c): a few short strings kept by key. On macOS / iOS they
-// live in the Keychain (secure_store_apple.m); everywhere else in net/nextendo.txt in the data folder (mode 0600).
-// RECOMP_SECURE_STORE=file forces the file on Apple too (the tests). Values must not contain newlines.
+// A tiny secret store for the Nextendo sign-in (nextendo.c): a few short strings kept by key. On iOS they live in
+// the Keychain (secure_store_apple.m); everywhere else, macOS too, in net/nextendo.txt in the data folder (mode 0600).
+// RECOMP_SECURE_STORE=file / keychain picks one on Apple. Values must not contain newlines.
 #pragma once
 #include <stdbool.h>
 #include <stddef.h>

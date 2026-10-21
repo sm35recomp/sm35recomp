@@ -79,6 +79,8 @@ typedef struct {
     bool uses_gmem_store;    // STG present: the gmem buffer is not readonly
     uint32_t cbuf_need[18];  // highest constant vec4 index + 1 per cbuf (array size of the GLSL block)
     uint32_t gs_max_out, gs_topo;  // geometry (SPH): maximum output vertices, output topology (1 points, 6 lines, 7 triangles)
+    uint32_t cur_pc;  // the instruction being translated (byte offset from code)
+    int bl_first;     // the first bindless slot + 1 (0: none yet)
 } Ctx;
 
 static uint64_t bits(uint64_t w, int lo, int n) { return (w >> lo) & ((n == 64) ? ~0ull : ((1ull << n) - 1)); }
@@ -764,7 +766,44 @@ static void emit_texs(Ctx *c, uint64_t w, bool fetch) {
     write_tex_result(c, slot, call, mask, d0, d1, true, !bits(w, 59, 1));  // 0xd0/0xd2: .F16 results
 }
 
-// TEX (full form): coordinates from consecutive registers at gpr8, extra parameters at gpr20.
+static bool is_ipa(uint64_t w) {
+    return (w & 0xff0000400000ff00ull) == 0xe00000000000ff00ull || (w & 0xff00004000000000ull) == 0xe000004000000000ull;
+}
+
+// The input varying a bindless handle register was interpolated from: the last instruction before this one that
+// writes it must be an IPA (straight-line code: the sprite shaders' pattern); its attribute address, or -1.
+static int bindless_source(Ctx *c, int reg) {
+    for (int64_t i = (int64_t)c->cur_pc / 8 - 1; i >= 0; i--) {
+        if (i % 4 == 0) continue;
+        uint64_t w = ((const uint64_t *)c->code)[i];
+        if ((w & 0xfff8000000000000ull) == 0xeff0000000000000ull) continue;  // ST a[]: Rd is the value stored
+        if ((int)bits(w, 0, 8) != reg) continue;
+        return is_ipa(w) && !bits(w, 38, 1) ? (int)bits(w, 28, 10) : -1;
+    }
+    return -1;
+}
+
+// The bindless slots (one group per shader, all of one type): the first slot
+static int bindless_slots(Ctx *c, int type, bool shadow, bool array) {
+    if (c->bl_first) {
+        ShaderTexture *t = &c->info->tex[c->bl_first - 1];
+        if (t->type != type || t->shadow != shadow) fail(c, "bindless textures of two types");
+        return c->bl_first - 1;
+    }
+    if (c->info->ntex + BINDLESS_SLOTS > 16) { fail(c, "too many textures with the bindless slots"); return 0; }  // (16 samplers)
+    c->bl_first = c->info->ntex + 1;
+    for (int k = 0; k < BINDLESS_SLOTS; k++) {
+        ShaderTexture *t = &c->info->tex[c->info->ntex++];
+        memset(t, 0, sizeof *t);
+        t->type = (uint8_t)type, t->shadow = shadow, t->is_array = array;
+        t->bindless = true, t->bindless_offset = (uint32_t)k;
+    }
+    c->info->uses_bindless = true;
+    return c->bl_first - 1;
+}
+
+// TEX (full form): coordinates from consecutive registers at gpr8, extra parameters at gpr20. TEX.B (bindless): the
+// texture handle is the first register at gpr20, the extra parameters follow it.
 static void emit_tex(Ctx *c, uint64_t w, bool bindless) {
     int d = (int)bits(w, 0, 8), a = (int)bits(w, 8, 8), b = (int)bits(w, 20, 8);
     uint32_t index = bindless ? 0 : (uint32_t)bits(w, 36, 13);
@@ -772,13 +811,24 @@ static void emit_tex(Ctx *c, uint64_t w, bool bindless) {
     bool array = bits(w, 28, 1), dc = bits(w, 50, 1), aoffi = bindless ? bits(w, 36, 1) : bits(w, 54, 1);
     uint32_t mask = (uint32_t)bits(w, 31, 4);
     int lod_mode = bindless ? (int)bits(w, 37, 3) : (int)bits(w, 55, 3);  // 0 none, 1 lz, 2 lb, 3 ll, 6 lba, 7 lla
-    if (bindless) { fail(c, "bindless tex"); return; }
+    int hreg = RZ;
+    if (bindless) {
+        if (c->glsl) { fail(c, "bindless tex (GLSL)"); return; }
+        if (c->stage != STAGE_FRAGMENT) { fail(c, "bindless tex outside a fragment shader"); return; }
+        hreg = b++;
+        int src = bindless_source(c, hreg);
+        if (src < 0) { fail(c, "bindless tex: the handle is not an input"); return; }
+        if (c->info->bl_attr >= 0 && c->info->bl_attr != src) { fail(c, "bindless tex: handles from two inputs"); return; }
+        c->info->bl_attr = src;
+        c->reg_used[hreg] = 1;
+    }
     int type = target == 0 ? (array ? TEXTYPE_1D_ARRAY : TEXTYPE_1D)
              : target == 1 ? (array ? TEXTYPE_2D_ARRAY : TEXTYPE_2D)
              : target == 2 ? TEXTYPE_3D
                            : (array ? TEXTYPE_CUBE_ARRAY : TEXTYPE_CUBE);
     int ncoord = target == 0 ? 1 : target == 1 ? 2 : 3;
-    int slot = tex_slot(c, index, type, dc, array);
+    int slot = bindless ? bindless_slots(c, type, dc, array) : tex_slot(c, index, type, dc, array);
+    if (c->fail) return;
     if (c->glsl) {  // same register layout as below
         char cs[3][40], lay[96], lodv[48], offv[96], drv[48], gcall[4096];
         const char *co[3], *layp = NULL, *lodp = NULL, *offp = NULL, *drp = NULL;
@@ -803,8 +853,7 @@ static void emit_tex(Ctx *c, uint64_t w, bool bindless) {
     }
     char coords[256] = "", layer[64] = "", tmp[64];
     int ar = a;
-    // the hardware clamps the array index to the layer count
-    if (array) { sprintf(layer, "min(uint(r%d), t%d.get_array_size() - 1u)", a, slot); c->reg_used[a] = 1; ar = a + 1; }
+    if (array) { c->reg_used[a] = 1; ar = a + 1; }
     for (int i = 0; i < ncoord; i++) {
         sprintf(tmp, "%sas_type<float>(r%d)", i ? ", " : "", ar + i);
         c->reg_used[ar + i] = 1;
@@ -827,12 +876,22 @@ static void emit_tex(Ctx *c, uint64_t w, bool bindless) {
     if (dc) { c->reg_used[pr] = 1; sprintf(dref, "as_type<float>(r%d)", pr); pr++; }
     const char *vec = ncoord == 1 ? "" : ncoord == 2 ? "float2" : "float3";
     char call[1024];
-    if (dc)
-        sprintf(call, "float4(t%d.sample_compare(s%d, %s(%s)%s%s, %s%s%s))", slot, slot, vec, coords, array ? ", " : "",
-                layer, dref, lod, off);
-    else
-        sprintf(call, "t%d.sample(s%d, %s(%s)%s%s%s%s)", slot, slot, vec, coords, array ? ", " : "", layer, lod, off);
-    write_tex_result(c, slot, call, mask, d, RZ, false, false);
+    // bindless: sample the slot whose handle (the draw's table) is the register's; none matches: zero
+    if (bindless) sp(&c->body, "    { uint bh = r%d; float4 bt = float4(0);\n", hreg);
+    for (int k = 0; k < (bindless ? BINDLESS_SLOTS : 1); k++) {
+        int sl = slot + k;
+        // the hardware clamps the array index to the layer count
+        if (array) sprintf(layer, "min(uint(r%d), t%d.get_array_size() - 1u)", a, sl);
+        if (dc)
+            sprintf(call, "float4(t%d.sample_compare(s%d, %s(%s)%s%s, %s%s%s))", sl, sl, vec, coords, array ? ", " : "",
+                    layer, dref, lod, off);
+        else
+            sprintf(call, "t%d.sample(s%d, %s(%s)%s%s%s%s)", sl, sl, vec, coords, array ? ", " : "", layer, lod, off);
+        if (!bindless) { write_tex_result(c, sl, call, mask, d, RZ, false, false); return; }
+        sp(&c->body, "    %sif (bh == bltab[%d]) bt = %s;\n", k ? "else " : "", k, call);
+    }
+    write_tex_result(c, slot, "bt", mask, d, RZ, false, false);
+    sp(&c->body, "    }\n");
 }
 
 // TLD4 (texture gather): four texels' component `comp` around the coordinate. Operands as TEX: Ra = [layer], coords;
@@ -2123,6 +2182,7 @@ ShaderInfo *maxwell_translate(const uint8_t *blob, size_t max_size, int stage, c
     c->stage = stage;
     c->ipa_mode = -1;
     c->glsl = key && key->glsl;
+    info->bl_attr = -1;
     const uint8_t *sph = blob + 0x30;
     const uint8_t *code = blob + 0x80;
     // compute programs have neither the 0x30-byte NVN header nor an SPH: code starts at the blob
@@ -2146,6 +2206,7 @@ ShaderInfo *maxwell_translate(const uint8_t *blob, size_t max_size, int stage, c
         if (w == 0 && i > 4) break;
         end = i + 1;
     }
+    c->code = code, c->ninsts = end;
     // collect branch targets (labels)
     uint8_t *label = calloc(end + 4, 1);
     label[1] = 1;
@@ -2182,6 +2243,7 @@ ShaderInfo *maxwell_translate(const uint8_t *blob, size_t max_size, int stage, c
         uint32_t pc = (uint32_t)(i * 8);
         if (any_branch && label[i]) sp(&c->body, "  case %uu:\n", pc);
         if (annotate) sp(&c->body, "    // pc %x: %016llx\n", pc, (unsigned long long)((const uint64_t *)code)[i]);
+        c->cur_pc = pc;
         emit_insn(c, ((const uint64_t *)code)[i], pc);
         if (dbg && pc == maxwell_dbg_pc) {
             int rr = maxwell_dbg_reg % 1000, half = maxwell_dbg_reg / 1000;  // +1000: low f16, +2000: high f16
@@ -2307,6 +2369,7 @@ ShaderInfo *maxwell_translate(const uint8_t *blob, size_t max_size, int stage, c
         sp(&args, ", constant float4 *ltint [[buffer(19)]]");
         info->uses_tint = true;
     }
+    if (info->uses_bindless) sp(&args, ", constant uint *bltab [[buffer(%d)]]", BINDLESS_TABLE_INDEX);
     for (int i = 0; i < info->ntex; i++) {
         ShaderTexture *t = &info->tex[i];
         const char *tn = tex_type_name(t->type);
@@ -2407,6 +2470,33 @@ void maxwell_free(ShaderInfo *s) {
     if (!s) return;
     free(s->msl);
     free(s);
+}
+
+int maxwell_vs_passthrough(const uint8_t *blob, size_t max_size, uint32_t out_addr) {
+    const uint64_t *code = (const uint64_t *)(blob + 0x80);
+    size_t n = max_size > 0x80 ? (max_size - 0x80) / 8 : 0;
+    if (n > 65536) n = 65536;
+    for (size_t i = 0; i < n; i++) {
+        if (i % 4 == 0) continue;
+        uint64_t w = code[i];
+        if (w == 0 && i > 4) break;
+        if ((w & 0xfff8000000000000ull) != 0xeff0000000000000ull) continue;  // ST a[]
+        uint32_t addr = (uint32_t)bits(w, 20, 10), cnt = 1 + (uint32_t)bits(w, 47, 2);
+        if (out_addr < addr || out_addr >= addr + 4 * cnt) continue;
+        int reg = (int)bits(w, 0, 8) + (int)(out_addr - addr) / 4;
+        for (int64_t k = (int64_t)i - 1; k >= 0; k--) {  // the register's last writer must be LD a[] (straight line)
+            if (k % 4 == 0) continue;
+            uint64_t v = code[k];
+            if ((v & 0xfff8000000000000ull) == 0xeff0000000000000ull) continue;
+            int d = (int)bits(v, 0, 8);
+            bool ld = (v & 0xfff8000000000000ull) == 0xefd8000000000000ull && bits(v, 8, 8) == RZ;
+            int dn = ld ? 1 + (int)bits(v, 47, 2) : 1;
+            if (reg < d || reg >= d + dn) continue;
+            return ld ? (int)bits(v, 20, 10) + 4 * (reg - d) : -1;
+        }
+        return -1;
+    }
+    return -1;
 }
 
 void maxwell_disassemble(const uint8_t *code, size_t max_size, int stage, void *file) {
