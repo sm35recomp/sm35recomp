@@ -13,6 +13,7 @@
 
 #include "../../kernel.h"
 #include "shaders.h"
+#include "../bindless.h"
 #include "../buildsync.h"
 #include "vk.h"
 #include "../renderer.h"
@@ -1297,6 +1298,7 @@ typedef struct {
     VkDescriptorSetLayout set_layout[3];
     VkPipelineLayout layout;
     bool vs_uses_vid;
+    int bl_in;          // bindless (ShaderInfo.uses_bindless): the vertex input the handles come from (0x80 + 16 n + 4 c)
     _Atomic int state;  // BUILD_PENDING (translating, compiling), READY, FAILED (buildsync.h)
     BuildJob tjob, cjob;  // translation, compile (compute programs: cjob only)
     bool async;           // built on the queues: counted in flight until its state is final
@@ -1393,9 +1395,18 @@ static void translate_program(void *arg) {
         return;
     }
     if (!p->fi->msl) {
-        LOG("[shader] FS translate failed: %s\n", p->fi->error);
+        LOG("[shader] FS translate failed: %s (code %llx)\n", p->fi->error, (unsigned long long)p->code[1]);
         prog_state(p, BUILD_FAILED);
         return;
+    }
+    if (p->fi->uses_bindless) {  // its handles: a vertex input the vertex shader passes through (maxwell/shader.h)
+        p->bl_in = maxwell_vs_passthrough((const uint8_t *)(uintptr_t)p->code[0], p->cmax[0], (uint32_t)p->fi->bl_attr);
+        if (p->bl_in < 0x80 || p->gi) {
+            LOG("[shader] FS %llx: bindless handles from varying %#x, not a vertex input passed through\n",
+                (unsigned long long)p->code[1], p->fi->bl_attr);
+            prog_state(p, BUILD_FAILED);
+            return;
+        }
     }
     {   // (debug) LARECOMP_DEBUG_FS_OUT=<fs code address hex>:<target>:<value>: that fragment shader writes a constant to
         // colour target <target> (x, y) instead of what it computes - is it the value or the write that's missing?
@@ -2551,10 +2562,14 @@ void vk_exec_reset(void) {
     st_defaults();
 }
 
+// Bindless (maxwell/shader.h): the handles this draw's vertices carry, in the program's bindless slots; 0 = none
+static uint32_t bl_handles[BINDLESS_SLOTS];
+
 static void texture_info(int stage, ShaderInfo *si, int i, VkDescriptorImageInfo *out, float sc[2], uint32_t wh[2]) {
     ShaderTexture *st_ = &si->tex[i];
     int slot = ((int)st_->handle_offset - 0x20) / 8;  // 64-bit handles from offset 0x20
     uint64_t h = (slot >= 0 && slot < 32) ? st.tex[stage][slot] : 0;
+    if (st_->bindless) h = st_->bindless_offset < BINDLESS_SLOTS ? bl_handles[st_->bindless_offset] : 0;
     VkImageView view = VK_NULL_HANDLE;
     VkSampler smp = VK_NULL_HANDLE;
     uint32_t tic = h & 0xFFFFF, tsc = (uint32_t)(h >> 20) & 0xFFF;
@@ -2650,11 +2665,13 @@ static VkDescriptorSet stage_set(Prog *p, VkDescriptorSetLayout layout, uint32_t
     for (int i = 0; i < p->nbinds; i++) {
         VkBindingInfo *b = &p->binds[i];
         if (b->set != set || b->type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
-            (b->binding != 18 && b->binding != 19 && b->binding != GMAP_BUFFER_INDEX)) continue;
+            (b->binding != 18 && b->binding != 19 && b->binding != GMAP_BUFFER_INDEX && b->binding != BINDLESS_TABLE_INDEX)) continue;
         w[n] = (VkWriteDescriptorSet){.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, .dstSet = ds, .dstBinding = b->binding,
                                       .descriptorCount = 1, .descriptorType = b->type};
         if (b->binding == GMAP_BUFFER_INDEX) {  // (compute) this dispatch's fast-copy table: gfast_prepare
             bi[n] = ubo_span(vk_transient_copy(gmap_tab, sizeof gmap_tab, 256), sizeof gmap_tab);
+        } else if (b->binding == BINDLESS_TABLE_INDEX) {  // the draw's bindless handles (uvec4 bltab[2])
+            bi[n] = ubo_span(vk_transient_copy(bl_handles, sizeof bl_handles, 256), sizeof bl_handles);
         } else if (b->binding == 18) {
             for (int t = 0; t < si->ntex && t < 64; t++) { rs[1 + t][0] = tex_sc[sg][t][0]; rs[1 + t][1] = tex_sc[sg][t][1]; }
             bi[n] = ubo_span(copy_dedupe(sg ? DEDUPE_RSCALE_F : DEDUPE_RSCALE_V, rs, sizeof rs, 256), sizeof rs);
@@ -2922,6 +2939,34 @@ static void pipe_key(const ExecState *s, const PassLayout *pl, Prog *pr, int top
     k->poly_fill = s->poly[2] != 1;
 }
 
+static bool vk_format_32bit(VkFormat f) {
+    switch (f) {
+    case VK_FORMAT_R32_UINT: case VK_FORMAT_R32G32_UINT: case VK_FORMAT_R32G32B32_UINT: case VK_FORMAT_R32G32B32A32_UINT:
+    case VK_FORMAT_R32_SINT: case VK_FORMAT_R32G32_SINT: case VK_FORMAT_R32G32B32_SINT: case VK_FORMAT_R32G32B32A32_SINT:
+    case VK_FORMAT_R32_SFLOAT: case VK_FORMAT_R32G32_SFLOAT: case VK_FORMAT_R32G32B32_SFLOAT: case VK_FORMAT_R32G32B32A32_SFLOAT:
+        return true;
+    default: return false;
+    }
+}
+
+// Collect the distinct handles in the draw's vertices (vertex input pr->bl_in) into bl_handles (renderer.m: the same)
+static void gather_bindless(CmdRec *r, bool indexed, Prog *pr) {
+    memset(bl_handles, 0, sizeof bl_handles);
+    int n = (pr->bl_in - 0x80) / 16, comp = (pr->bl_in & 15) / 4;
+    uint32_t a = n < st.nattrib ? st.attrib[n] : 0;
+    uint32_t fmt = a & 0xFF, stream = (a >> 8) & 0x1F, off = a >> 13;
+    static int warned, warned_over;
+    if (!fmt || stream >= 16 || !vk_format_32bit(vertex_format(fmt))) {
+        if (!warned++) LOG("[bindless] handle attribute %d: format %#x not 32-bit (no textures)\n", n, fmt);
+        return;
+    }
+    BlStream bs = {(const uint8_t *)(uintptr_t)st.vbuf[stream].addr, st.vbuf[stream].size,
+                   stream < (uint32_t)st.nstream ? st.stream[stream][0] : 0, stream < (uint32_t)st.nstream ? st.stream[stream][1] : 0,
+                   off + 4u * (uint32_t)comp};
+    if (bindless_gather(r, indexed, &bs, bl_handles) && warned_over++ < 5)
+        LOG("[bindless] a draw uses more than %d textures: some drawn without\n", BINDLESS_SLOTS);
+}
+
 static void draw(CmdRec *r, bool indexed) {
     PROF_T0();
     draw_(r, indexed);
@@ -3171,6 +3216,7 @@ static void draw_(CmdRec *r, bool indexed) {
     PROF_ADD(prof_sets);
     VkDescriptorImageInfo fii[64];
     uint64_t prof_tx_ = prof ? SDL_GetTicksNS() : 0;
+    if (pr->fi->uses_bindless) gather_bindless(r, indexed, pr);
     for (int i = 0; i < pr->fi->ntex && i < 64; i++) {
         float sc[2]; uint32_t wh[2];
         texture_info(1, pr->fi, i, &fii[i], sc, wh);

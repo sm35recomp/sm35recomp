@@ -18,6 +18,7 @@
 #include <SDL3/SDL_timer.h>
 
 #include "maxwell/shader.h"
+#include "bindless.h"
 #include "nvn.h"
 #include "renderer.h"
 #include "buildsync.h"
@@ -1802,48 +1803,21 @@ static int vformat_comp_bytes(MTLVertexFormat f) {
 }
 
 // Collect the distinct handles in the draw's vertices (vertex input pr->bl_in) into bl_handles
-static void bindless_gather(CmdRec *r, bool indexed, Prog *pr) {
+static void gather_bindless(CmdRec *r, bool indexed, Prog *pr) {
     memset(bl_handles, 0, sizeof bl_handles);
     int n = (pr->bl_in - 0x80) / 16, comp = (pr->bl_in & 15) / 4;
     uint32_t a = n < st.nattrib ? st.attrib[n] : 0;
     uint32_t fmt = a & 0xFF, stream = (a >> 8) & 0x1F, off = a >> 13;
-    static int warned;
+    static int warned, warned_over;
     if (!fmt || stream >= 12 || vformat_comp_bytes(vertex_format(fmt)) != 4) {
         if (!warned++) LOG("[bindless] handle attribute %d: format %#x not 32-bit (no textures)\n", n, fmt);
         return;
     }
-    Range v = st.vbuf[stream];
-    uint32_t stride = stream < (uint32_t)st.nstream ? st.stream[stream][0] : 0, div = stream < (uint32_t)st.nstream ? st.stream[stream][1] : 0;
-    if (!v.addr) return;
-    const uint8_t *src = (const uint8_t *)(uintptr_t)v.addr;
-    uint32_t count = (uint32_t)r->x[2], nh = 0, overflow = 0;
-    uint32_t inst = indexed ? (uint32_t)r->x[6] : (uint32_t)r->x[4], base_inst = indexed ? (uint32_t)r->x[5] : (uint32_t)r->x[3];
-    if (!inst) inst = 1;
-    uint32_t total = (!stride || div) ? (stride ? inst : 1) : count;
-    if (total > 65536) total = 65536;
-    for (uint32_t i = 0; i < total; i++) {
-        uint64_t id;
-        if (!stride) id = 0;
-        else if (div) id = (base_inst + i) / div;
-        else if (!indexed) id = (uint32_t)r->x[1] + i;
-        else {
-            uint32_t itype = (uint32_t)r->x[1];
-            const uint8_t *ip = (const uint8_t *)(uintptr_t)r->x[3];
-            id = (uint32_t)((int32_t)(itype == 0 ? ip[i] : itype == 1 ? ((const uint16_t *)ip)[i] : ((const uint32_t *)ip)[i]) + (int32_t)r->x[4]);
-        }
-        uint64_t at = id * stride + off + 4u * (uint32_t)comp;
-        if (v.size && at + 4 > v.size) continue;
-        uint32_t h;
-        memcpy(&h, src + at, 4);
-        if (!h) continue;
-        uint32_t k = 0;
-        while (k < nh && bl_handles[k] != h) k++;
-        if (k < nh) continue;
-        if (nh < BINDLESS_SLOTS) bl_handles[nh++] = h;
-        else overflow++;
-    }
-    static int warned_over;
-    if (overflow && warned_over++ < 5) LOG("[bindless] a draw uses more than %d textures: some drawn without\n", BINDLESS_SLOTS);
+    BlStream bs = {(const uint8_t *)(uintptr_t)st.vbuf[stream].addr, st.vbuf[stream].size,
+                   stream < (uint32_t)st.nstream ? st.stream[stream][0] : 0, stream < (uint32_t)st.nstream ? st.stream[stream][1] : 0,
+                   off + 4u * (uint32_t)comp};
+    if (bindless_gather(r, indexed, &bs, bl_handles) && warned_over++ < 5)
+        LOG("[bindless] a draw uses more than %d textures: some drawn without\n", BINDLESS_SLOTS);
 }
 
 static void bind_textures(int stage, ShaderInfo *si) {
@@ -2770,7 +2744,7 @@ static void draw(CmdRec *r, bool indexed) {
     void *enc_before_tex = (__bridge void *)enc;
     bind_textures(0, pr->vi);
     if (pr->fi->uses_bindless) {
-        bindless_gather(r, indexed, pr);
+        gather_bindless(r, indexed, pr);
         [enc setFragmentBytes:bl_handles length:sizeof bl_handles atIndex:BINDLESS_TABLE_INDEX];
     }
     bind_textures(1, pr->fi);

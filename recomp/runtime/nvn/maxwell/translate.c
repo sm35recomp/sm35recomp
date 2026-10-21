@@ -813,7 +813,6 @@ static void emit_tex(Ctx *c, uint64_t w, bool bindless) {
     int lod_mode = bindless ? (int)bits(w, 37, 3) : (int)bits(w, 55, 3);  // 0 none, 1 lz, 2 lb, 3 ll, 6 lba, 7 lla
     int hreg = RZ;
     if (bindless) {
-        if (c->glsl) { fail(c, "bindless tex (GLSL)"); return; }
         if (c->stage != STAGE_FRAGMENT) { fail(c, "bindless tex outside a fragment shader"); return; }
         hreg = b++;
         int src = bindless_source(c, hreg);
@@ -833,7 +832,7 @@ static void emit_tex(Ctx *c, uint64_t w, bool bindless) {
         char cs[3][40], lay[96], lodv[48], offv[96], drv[48], gcall[4096];
         const char *co[3], *layp = NULL, *lodp = NULL, *offp = NULL, *drp = NULL;
         int ar2 = a, p2 = b, lk = 0;
-        if (array) { sprintf(lay, "min(uint(r%d), uint(tsize%d(0).z) - 1u)", a, slot); c->reg_used[a] = 1; ar2 = a + 1; layp = lay; }
+        if (array) { c->reg_used[a] = 1; ar2 = a + 1; layp = lay; }
         for (int i = 0; i < ncoord; i++) { sprintf(cs[i], "as_type<float>(r%d)", ar2 + i); c->reg_used[ar2 + i] = 1; co[i] = cs[i]; }
         if (lod_mode == 2 || lod_mode == 3 || lod_mode == 6 || lod_mode == 7) {
             c->reg_used[p2] = 1;
@@ -847,8 +846,16 @@ static void emit_tex(Ctx *c, uint64_t w, bool bindless) {
         }
         if (aoffi) { c->reg_used[p2] = 1; sprintf(offv, "int2(int(r%d << 28) >> 28, int(r%d << 24) >> 28)", p2, p2); offp = offv; p2++; }
         if (dc) { c->reg_used[p2] = 1; sprintf(drv, "as_type<float>(r%d)", p2); drp = drv; p2++; }
-        glsl_sample(c, gcall, slot, co, layp, drp, lk, lodp, offp);
-        write_tex_result(c, slot, gcall, mask, d, RZ, false, false);
+        // bindless: as the MSL below (the table is uvec4 bltab[2] here)
+        if (bindless) sp(&c->body, "    { uint bh = r%d; float4 bt = float4(0);\n", hreg);
+        for (int k = 0; k < (bindless ? BINDLESS_SLOTS : 1); k++) {
+            if (array) sprintf(lay, "min(uint(r%d), uint(tsize%d(0).z) - 1u)", a, slot + k);
+            glsl_sample(c, gcall, slot + k, co, layp, drp, lk, lodp, offp);
+            if (!bindless) { write_tex_result(c, slot, gcall, mask, d, RZ, false, false); return; }
+            sp(&c->body, "    %sif (bh == bltab[%d][%d]) bt = %s;\n", k ? "else " : "", k / 4, k % 4, gcall);
+        }
+        write_tex_result(c, slot, "bt", mask, d, RZ, false, false);
+        sp(&c->body, "    }\n");
         return;
     }
     char coords[256] = "", layer[64] = "", tmp[64];
@@ -2035,6 +2042,9 @@ static ShaderInfo *glsl_finish(Ctx *c, bool any_branch, bool dbg) {
         sp(&s, "layout(std140, set = %d, binding = 19) uniform Tint { vec4 ltint[2]; };\n", set);
         info->uses_tint = true;
     }
+    if (info->uses_bindless)
+        sp(&s, "layout(std140, set = %d, binding = %d) uniform BlTab { uvec4 bltab[%d]; };\n", set, BINDLESS_TABLE_INDEX,
+           (BINDLESS_SLOTS + 3) / 4);
     for (int i = 0; i < info->ntex; i++) {
         ShaderTexture *t = &info->tex[i];
         sp(&s, "layout(set = %d, binding = %d) uniform %s t%d;\n", set, 32 + i, glsl_sampler_type(t), i);
