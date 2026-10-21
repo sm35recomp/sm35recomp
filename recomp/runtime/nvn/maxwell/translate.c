@@ -23,6 +23,7 @@
 #include "shader.h"
 
 uint64_t maxwell_gmem_base, maxwell_gmem_size;
+bool maxwell_glsl_bda;
 const uint8_t *maxwell_dbg_code;
 uint32_t maxwell_dbg_pc;
 int maxwell_dbg_reg;
@@ -1613,8 +1614,11 @@ static void emit_insn(Ctx *c, uint64_t w, uint32_t pc) {
         if (a == RZ) sprintf(addr, "ulong(%lld)", (long long)off);
         else if (wide) sprintf(addr, "((ulong(%s) << 32 | ulong(%s)) + ulong(%lld))", R(a + 1), R(a), (long long)off);
         else sprintf(addr, "(ulong(%s) + ulong(%lld))", R(a), (long long)off);
-        sp(&c->body, "    { ulong ga = %s - 0x%llxul; bool ok = ga < 0x%llxul;\n", addr,
-           (unsigned long long)maxwell_gmem_base, (unsigned long long)maxwell_gmem_size);
+        if (c->glsl && maxwell_glsl_bda)  // (the bound: the heap as imported, from the address block: see below)
+            sp(&c->body, "    { ulong ga = %s - 0x%llxul; bool ok = ga < gmem_lim;\n", addr, (unsigned long long)maxwell_gmem_base);
+        else
+            sp(&c->body, "    { ulong ga = %s - 0x%llxul; bool ok = ga < 0x%llxul;\n", addr,
+               (unsigned long long)maxwell_gmem_base, (unsigned long long)maxwell_gmem_size);
         static const char *const ld_small[] = {"uint(gmem[ga])", "uint(int(char(gmem[ga])))",
                                                "uint(*(device ushort *)(gmem + ga))", "uint(int(*(device short *)(gmem + ga)))"};
         int nw = size == 5 ? 2 : size >= 6 ? 4 : 1;
@@ -1946,6 +1950,8 @@ static const char glsl_prelude[] =
     "#extension GL_KHR_shader_subgroup_shuffle : require\n"
     "#extension GL_KHR_shader_subgroup_shuffle_relative : require\n"
     "#extension GL_EXT_texture_shadow_lod : require\n"
+    "#extension GL_EXT_buffer_reference : require\n"
+    "#extension GL_EXT_buffer_reference_uvec2 : require\n"
     "#define cbr(cb, off) cb[min((off) >> 4, uint(cb.length() - 1))][((off) >> 2) & 3u]\n"
     "uint as_u(float x) { return floatBitsToUint(x); }\n"
     "uint as_u(uint x) { return x; }\n"
@@ -2022,7 +2028,16 @@ static ShaderInfo *glsl_finish(Ctx *c, bool any_branch, bool dbg) {
         if (!n) n = 1;
         sp(&s, "layout(std140, set = %d, binding = %d) uniform CB%d { uvec4 cb%d[%u]; };\n", set, i, i, i, n);
     }
-    if (info->uses_gmem)
+    if (info->uses_gmem && maxwell_glsl_bda) {
+        // The heap through its device address (buffer_reference): a storage buffer binding reaches only
+        // maxStorageBufferRange of it - 128 MB on Mesa's lavapipe and on Adreno, 1-2 GB on some desktop GPUs - and reads
+        // past that returned zero (SM35's course cards lost their text: the per-letter data sits higher in the heap).
+        // Binding 17 holds the address and the imported size instead (exec.c gmem_desc).
+        sp(&s, "layout(std430, set = %d, binding = %d) readonly buffer GMemA { uvec2 gmem_a; uvec2 gmem_n; };\n", set,
+           GMEM_BUFFER_INDEX);
+        sp(&s, "layout(buffer_reference, std430, buffer_reference_align = 4) buffer GMemW { uint w[]; };\n");
+        sp(&s, "#define gmem_ GMemW(gmem_a)\n#define gmem_lim (uint64_t(gmem_n.y) << 32 | uint64_t(gmem_n.x))\n");
+    } else if (info->uses_gmem)
         sp(&s, "layout(std430, set = %d, binding = %d) %sbuffer GMem { uint w[]; } gmem_;\n", set, GMEM_BUFFER_INDEX,
            c->uses_gmem_store ? "" : "readonly ");
     if (info->uses_gmem_map) {  // (compute) the dispatch's storage buffers, device-local: gmap[i] = heap offset, size, word

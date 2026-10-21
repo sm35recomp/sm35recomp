@@ -572,8 +572,10 @@ static void upload_texture(NvnTexture *t, TexBackend *b) {
     static int always_full = -1;
     if (always_full < 0) always_full = getenv("LARECOMP_TEX_FULLHASH") ? 1 : 0;
     bool full = b->dynamic || !b->uploaded || always_full;
-    bool periodic = frame - b->full_frame >= 120 && full_hash_budget >= total;  // (safety net: a full hash now and then)
-    if (!full && periodic) { full = true; full_hash_budget -= total; }
+    // (safety net: a full hash now and then. A texture bigger than the frame's whole budget gets it when nothing else
+    // has used the budget yet: SM35's 14 MB font atlas was never hashed in full, and text drawn later stayed blank.)
+    bool periodic = frame - b->full_frame >= 120 && (full_hash_budget >= total || full_hash_budget == 4 << 20);
+    if (!full && periodic) { full = true; full_hash_budget -= total < full_hash_budget ? total : full_hash_budget; }
     if (!b->tp) b->tp = texpatch_identify(t) + 1;  // (button prompts / Hero Mode icon: re-uploaded when their look changes)
     bool restyle = b->tp > 0 && b->uploaded && b->tp_gen != texpatch_generation();
     // The OS's page write tracking (exec.c vk_pages_changed, shared with the vertex cache): texture memory the CPU
@@ -589,8 +591,11 @@ static void upload_texture(NvnTexture *t, TexBackend *b) {
             b->wgen = now;
             if (!ch && b->uploaded && !restyle) {
                 if (!periodic) { prof_tex_watch_skips++; return; }
-                if (b->dynamic) full_hash_budget -= total;  // (the others took theirs above)
+                if (b->dynamic) full_hash_budget -= total < full_hash_budget ? total : full_hash_budget;  // (the others took theirs above)
             }
+            // Written since the last check: hash it all. The sampled hash below reads a few bytes per page, and a
+            // glyph cache that gains a few glyphs (SM35's font atlas: the course cards' "COURSE 1-1") slips past it.
+            if (ch > 0) full = true;
         }
     }
     if (!full && !restyle) {

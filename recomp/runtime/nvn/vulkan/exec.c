@@ -2145,6 +2145,7 @@ static VkDescriptorBufferInfo cbuf_info(int stage, ShaderInfo *si, int k, uint32
 static VkBuffer gmem_buf;
 static VkDeviceMemory gmem_mem;
 static uint64_t gmem_size;
+static VkDeviceAddress gmem_addr;  // (g_vk.bda) the import's device address
 
 static bool gmem_import(uint64_t size) {
     PFN_vkGetMemoryHostPointerPropertiesEXT props =
@@ -2156,7 +2157,10 @@ static bool gmem_import(uint64_t size) {
     VkImportMemoryHostPointerInfoEXT imp = {.sType = VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT,
                                             .handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT,
                                             .pHostPointer = (void *)(uintptr_t)HEAP_BASE};
-    VkMemoryAllocateInfo ai = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, .pNext = &imp, .allocationSize = size,
+    VkMemoryAllocateFlagsInfo af = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO, .pNext = &imp,
+                                     .flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT};
+    VkMemoryAllocateInfo ai = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, .pNext = g_vk.bda ? (void *)&af : (void *)&imp,
+                               .allocationSize = size,
                                .memoryTypeIndex = (uint32_t)__builtin_ctz(mp.memoryTypeBits)};
     VkDeviceMemory mem;
     if (vkAllocateMemory(g_vk.dev, &ai, NULL, &mem) != VK_SUCCESS) return false;
@@ -2164,7 +2168,8 @@ static bool gmem_import(uint64_t size) {
                                            .handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_HOST_ALLOCATION_BIT_EXT};
     VkBufferCreateInfo bi = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .pNext = &eb, .size = size,
                              .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT};
+                                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                      (g_vk.bda ? VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT : 0)};
     VkBuffer buf;
     if (vkCreateBuffer(g_vk.dev, &bi, NULL, &buf) != VK_SUCCESS) { vkFreeMemory(g_vk.dev, mem, NULL); return false; }
     vkBindBufferMemory(g_vk.dev, buf, mem, 0);
@@ -2176,6 +2181,10 @@ static bool gmem_import(uint64_t size) {
     gmem_buf = buf;
     gmem_mem = mem;
     gmem_size = size;
+    if (g_vk.bda) {
+        VkBufferDeviceAddressInfo dai = {.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = buf};
+        gmem_addr = vkGetBufferDeviceAddress(g_vk.dev, &dai);
+    }
     LOG("[vk] guest heap imported for shader global memory: %llu MB\n", (unsigned long long)(size >> 20));
     return true;
 }
@@ -2232,6 +2241,16 @@ static VmaAllocation gfast_mem;
 static uint32_t gmap_tab[(GMAP_MAX + 1) * 4];  // this dispatch's table (stage_set copies it into binding 20)
 static VkBufferCopy gfast_cp[GMAP_MAX];       // its copies heap -> gfast_buf (reversed after a storing dispatch)
 static int gfast_n;
+
+// Binding GMEM_BUFFER_INDEX: the heap itself, or with g_vk.bda its device address and size (translate.c: GMemA)
+static VkDescriptorBufferInfo gmem_desc(void) {
+    VkDescriptorBufferInfo heap = gmem_info();
+    if (!g_vk.bda) return heap;
+    uint32_t ab[4] = {0, 0, 0, 0};  // (no import: size 0, every access out of bounds)
+    if (gmem_buf) ab[0] = (uint32_t)gmem_addr, ab[1] = (uint32_t)(gmem_addr >> 32), ab[2] = (uint32_t)gmem_size, ab[3] = (uint32_t)(gmem_size >> 32);
+    VkSpan s = vk_transient_copy(ab, sizeof ab, 256);
+    return (VkDescriptorBufferInfo){s.buf, s.off, sizeof ab};
+}
 
 static VkDescriptorBufferInfo gfast_info(void) {
     if (!gfast_buf) {
@@ -2655,7 +2674,7 @@ static VkDescriptorSet stage_set(Prog *p, VkDescriptorSetLayout layout, uint32_t
                 gpu_read_mark(st.sbuf[stage][k].addr, st.sbuf[stage][k].size);
                 if (stage == 5) gpu_read_mark(st.ubuf[5][k].addr, st.ubuf[5][k].size);
             }
-            bi[n] = b->binding == GFAST_BUFFER_INDEX ? gfast_info() : gmem_info();
+            bi[n] = b->binding == GFAST_BUFFER_INDEX ? gfast_info() : gmem_desc();
             w[n].pBufferInfo = &bi[n];
         } else {
             continue;  // rscale / tint: written below, once the textures (and their scales) are known
