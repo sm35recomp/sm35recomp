@@ -14,8 +14,9 @@ void nextendo_status(NxStatus *out);  // thread-safe snapshot, cheap enough for 
 bool nextendo_signed_in(void);        // a refresh token is stored
 
 // Desktop (redirect_uri NULL): opens a listener on 127.0.0.1:<free port> (own thread, 5 min timeout) and returns the
-// authorize URL to open. Starting again cancels a pending one (its port is closed). iOS passes its own redirect
-// (GAME_URL_SCHEME "://callback", runtime/game.h): no listener, the app calls nextendo_finish_sign_in with the URL it gets back.
+// authorize URL to open. Starting again cancels a pending one (its port is closed). An app can pass its own redirect
+// instead (a URL scheme): no listener, the app calls nextendo_finish_sign_in with the URL it gets back. (Nextendo
+// accepts only the loopback redirect for an emulator-type client such as this one, so iOS uses the listener too.)
 bool nextendo_begin_sign_in(const char *redirect_uri, char *url_out, size_t cap);
 bool nextendo_finish_sign_in(const char *callback_url);  // "...?code=..&state=.."; the listener calls it too
 void nextendo_sign_in_aborted(const char *msg);          // the sign-in sheet ended without a redirect: shown as the error

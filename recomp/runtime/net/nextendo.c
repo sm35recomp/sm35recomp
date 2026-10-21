@@ -687,8 +687,10 @@ void nextendo_sign_out(void) {
 // The platform's sign-in sheet ended without a redirect (cancelled, failed): the pending sign-in becomes an error.
 void nextendo_sign_in_aborted(const char *msg) {
     pthread_mutex_lock(&lock);
-    if (S.state == NX_WAITING_BROWSER) { S.pending = false; set_state(NX_ERROR, msg); }
+    bool waiting = S.state == NX_WAITING_BROWSER;
+    if (waiting) { S.pending = false; set_state(NX_ERROR, msg); }
     pthread_mutex_unlock(&lock);
+    if (waiting) stop_listener();  // (a loopback sign-in: its port closes)
 }
 
 void nx_test_reset(void) {
