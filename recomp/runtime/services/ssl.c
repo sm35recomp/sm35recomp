@@ -104,7 +104,24 @@ static const char *errstr(int e) {
 }
 
 // a few bytes of plaintext for the log (the WebSocket upgrade, then binary frames)
+// RECOMP_NET_HEX=<file>: every TLS payload in full, as hex, appended to that file (protocol study: NEX's RMC). It holds
+// the session's tokens and the player's id: a private file, never shared.
+static void hex_dump(const char *dir, const SslConn *c, const uint8_t *p, size_t n) {
+    static FILE *f;
+    static int init;
+    static pthread_mutex_t hl = PTHREAD_MUTEX_INITIALIZER;
+    if (!init) { init = 1; const char *e = getenv("RECOMP_NET_HEX"); if (e && *e) f = fopen(e, "a"); }
+    if (!f) return;
+    pthread_mutex_lock(&hl);
+    fprintf(f, "%.3f %s %s %zu ", plat_now_ns() / 1e9, c->sni[0] ? c->sni : "?", dir, n);
+    for (size_t i = 0; i < n; i++) fprintf(f, "%02x", p[i]);
+    fputc('\n', f);
+    fflush(f);
+    pthread_mutex_unlock(&hl);
+}
+
 static void log_data(const char *dir, const SslConn *c, const uint8_t *p, size_t n) {
+    if (n) hex_dump(dir, c, p, n);
     if (!net_log_on() || !n) return;
     char line[200];
     size_t o = 0, show = n < 160 ? n : 160;
