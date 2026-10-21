@@ -8,6 +8,29 @@ never Nintendo's servers. Bring-up notes are in
 
 ✅ done · 🔄 in progress · ⬜ not started · ⏳ waiting on the owner
 
+## Where this stands (2026-10-21, v0.4.0) — read this first
+
+**Paused by the owner after v0.4.0.** Nothing is running and nothing is uncommitted.
+
+- **Works:** setup from the player's dump on macOS; Nextendo sign-in; Course Practice, Special Battle, Daily
+  Challenges, Stats, Options (saved). 35-Player Battles through to the Ranking screen with two players (Mac + iPad).
+  Matching / Ranking buttons are **hold-to-confirm** (that was never a bug). Online failures show a notice that says
+  why. Audio confirmed by ear. Vulkan path runs (Linux arm64 under lavapipe; Android emulator).
+- **Released:** v0.4.0 on GitHub (macOS, Windows, Linux packages: launcher + recompiler, no game code), installed on the
+  owner's Mac (/Applications/Super Mario 35.app) and iPad (a private build with the game code, bundle
+  com.adriansmith.sm35recomp, shown as "SM 35"). iOS players use `recomp/tools/ios_kit.sh` (README: iPhone / iPad).
+- **Tested by others, not by us:** the owner has outside testers for long 35-player matches and for Windows / Linux
+  on real hardware. Their reports arrive as GitHub Issues (README: Reporting problems lists the logs).
+- **Next, when work resumes** (in order):
+  1. Triage testers' issues (Windows: `setjmp`/`longjmp` across recompiled frames under MinGW's SEH is unverified).
+  2. Rumble: the game plays HD-rumble files (`nn::hid::VibrationPlayer`, `SendVibrationValue`, hid cmd 201); the
+     runtime accepts and drops them. Map to `SDL_RumbleGamepad` (SMM2 has no rumble either).
+  3. Phase 3 leftovers: a drop mid-match (`RECOMP_NET_DROP_AFTER`), background / sleep on iOS.
+  4. Phase 6: port SM35's runtime fixes to SMM2 (below), and `runtime/net/nexwatch.c` (online failure notices).
+- **Tools for the next session:** pad scripts in `~/smm-work/sm35` (`pad_cancelH.txt` holds B for 90 frames), the work
+  run script `~/smm-work/sm35/try.sh <seconds>` (muted, hidden window), `RECOMP_NET_HEX`, `RECOMP_BSD_TRACE`,
+  `RECOMP_PEEK`, `LARECOMP_FNPROF_BT`, `LARECOMP_MENU_AT` + `LARECOMP_WINDOW_SHOT` (overlay screenshots).
+
 ## Phase 0: Bring-up and first release ✅
 
 - ✅ The repository: the SMM2 Recomp runtime and recompiler, with `games/sm35/`, the version checks, the setup
@@ -82,7 +105,7 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    through `audren` (SMM2's renderer). The game asks `hwopus` only for a work-buffer size at start and never opens a
    decoder, so the stub is enough so far. ✅ The output mix has sound (a 70 s float WAV of Course Practice through
    `LARECOMP_AUDIO_WAV`: silent only through boot and one 2 s fade; music at about 0.03 RMS with sound-effect peaks
-   up to 0.27, no clipping). ✅ Confirmed by ear by the owner (2026-10-21, on the Mac: "sound seems OK"). ⏳ The 35-player battle's sounds:
+   up to 0.27, no clipping). ✅ Confirmed by ear by the owner (2026-10-21, on the Mac: "sound seems OK"). The 35-player battle's sounds: the owner's
    outside testers.
 4. 🔄 Input: ✅ the left stick also presses the d-pad (the game walks only with the d-pad here; the iPad's touch stick
    and controllers did nothing). ⬜ Every button the game uses (item roulette with R, targeting with L or the right stick, touch on handheld
@@ -122,7 +145,7 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      `RECOMP_NET_HEX=<file>` dumps every TLS payload.
    - ✅ **A two-player match played through** (2026-10-21, relay room 349, Mac + iPad build 31, released as v0.2.1):
      course 1-1, both players, the Ranking screen with the same result on both (coins 200 / 180), Rematch offered.
-3. 🔄 A full match: ✅ start to the Ranking screen with two players (personal result, Level Up, Ranking; A moves on).
+3. ✅ A full match: ✅ start to the Ranking screen with two players (personal result, Level Up, Ranking; A moves on).
    ✅ **Cancel on Matching, and Main Menu / Rematch on the Ranking screen, work: they are held, not tapped**
    (2026-10-21). Each button fills a gauge while it is held (1/30 per game step, about a second) and acts only once the
    gauge is full; letting go empties it. The "hang" was the test scripts' 10-20 frame taps. Held for 90 frames, Cancel
@@ -130,8 +153,6 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    stay held while the finger is down, so this works on the iPad. Found on the way, and harmless: Nextendo answers
    DeliverMessage (protocol 27, method 1: the host's lobby messages) only by forwarding the message back with the
    sender's call id, where kinnay's server also returns a response; the game carries on either way.
-   ⏳ A longer match by hand (outside testers, arranged by the owner): the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
-   and XP awarded.
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
 5. 🔄 Robustness: ✅ a dropped connection in the lobby (2026-10-21, `RECOMP_NET_DROP_AFTER=<s>` shuts down every TCP
    connection to the game server that long after the first one): the game saves and goes back to the main menu
@@ -140,18 +161,18 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 6. ✅ Friends and presence: not used. Through login, Matching and Cancel the game opens acc, nifm, nsd, sfdnsres,
    bsd, ssl, bcat, prepo (stubbed: play reports go nowhere), pctl, aoc, set, time, hid, irs, audren, hwopus (only a
    size query) and fsp-srv; never `friend` (2026-10-21 audit).
-7. ⏳ Live matches need other players on Nextendo at the same time (or Nextendo's bots, if it has them).
 
-## Phase 4: Platforms ⬜
+## Phase 4: Platforms 🔄
 
-1. ⏳ Windows: run the release package on a real PC (outside testers, arranged by the owner); Vulkan driver checks. `setjmp`/
-   `longjmp` across recompiled frames under MinGW's SEH unwinding is untested. Verify it on Windows first.
-2. ⏳ Linux x86-64 / arm64: run the packages (outside testers, arranged by the owner); an AppImage with SDL3 bundled.
-3. ⬜ macOS: a signed and notarized app (needs a Developer ID); a fallback for the release workflow when GitHub's
+Windows and Linux on real hardware: the owner's testers (not on this list). Notes for their reports: `setjmp` /
+`longjmp` across recompiled frames under MinGW's SEH is unverified; an AppImage with SDL3 bundled would ease Linux.
+
+1. ⬜ macOS: a signed and notarized app (needs a Developer ID); a fallback for the release workflow when GitHub's
    macOS runners have no capacity (v0.1.0's macOS package was built on the Mac when that happened).
-4. ⬜ iPad / iPhone (owner's devices): install over Tailscale, the touch controls, the notch-safe layout (SMM2's
-   iPhone L/ZL issue applies here too), the background/foreground behaviour.
-5. ⬜ Mobile releases with **no game code in them** (owner's choice, 2026-10-20):
+2. 🔄 iPad / iPhone (owner's devices): ✅ install over Tailscale, the touch controls (a held touch button stays held:
+   the hold-to-confirm buttons work), 60 fps on the iPad. ⬜ An iPhone's notch-safe layout (SMM2's L/ZL issue
+   applies), the background / foreground behaviour.
+3. ⬜ Mobile releases with **no game code in them** (owner's choice, 2026-10-20):
    - **Android:** a launcher-only APK. The player's desktop app builds `libsm35game.so` (arm64, Android guest origin)
      from their own dump, and the APK imports it with the game files: a folder or zip picked through the system file
      picker. Check that Android 14+ still allows loading a read-only native library from app storage. Without a
@@ -160,19 +181,18 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      It takes the game files the Mac app set up, recompiles, builds SDL3 for iOS from its pinned source
      (`tools/fetch_deps.sh ios-arm64`), asks Xcode for a profile with the two entitlements, signs, and leaves
      build/ios-kit/SM35Recomp.ipa plus Documents/ (the game files to copy into the app with Finder). Run here with
-     the owner's team: a signed IPA in about 2 minutes. ⬜ Install it from Finder on a device (the owner's iPad was
-     offline). Free Apple accounts: untested, and left to players (owner, 2026-10-21): the README and the kit say a paid
+     the owner's team: a signed IPA in about 2 minutes. Free Apple accounts: untested, and left to players (owner, 2026-10-21): the README and the kit say a paid
      Developer account is known to work, a free one is untested (7-day apps, maybe not the two entitlements), and ask
      for reports.
    - The release workflow attaches the APK and the iOS kit; `check_package.py` covers both.
-6. 🔄 Android (owner has no device). ✅ Runs in the emulator (2026-10-21: Android 15 arm64, gfxstream on the Mac's
+4. 🔄 Android (owner has no device). ✅ Runs in the emulator (2026-10-21: Android 15 arm64, gfxstream on the Mac's
    GPU; a private debuggable test build with the game code): it boots to the main menu with all text, at about 45-60
    fps. Fixed on the way: the APK build (mbedtls -fPIC, libnativewindow); the app can't read what adb pushes into
    Android/data/<package> on Android 11+, so the data folder is the internal one when the game files are there
    (android_push_data.sh --internal); without host memory import, shader global memory read zero (text missing), now
    per-draw copies of the storage buffers. The emulator lives on the internal disk (~/smm-work/android-sdk, AVD
    sm35test; delete when done). ⬜ Course Practice there (needs Nextendo sign-in in the emulator). ⬜ A real device.
-7. ⬜ Web (wasm + WebGPU), for the owner's own use on their machine or LAN only, as decided for SMM2. Feasibility after
+5. ⬜ Web (wasm + WebGPU), for the owner's own use on their machine or LAN only, as decided for SMM2. Feasibility after
    the native ports.
 
 ## Phase 5: Parity with SMM2 Recomp and polish ⬜
@@ -194,7 +214,7 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 4. ⬜ Frame generation (120 fps output): try it on this game's 2D scenes; off by default, as in SMM2.
 5. ✅ Shader prefetch and the pipeline cache: not needed for SM35 (a few dozen small shaders, ~12 ms in all from cold;
    Phase 2 item 7).
-6. ⬜ The update check and release notes flow (in place; check it once v0.2.0 exists).
+6. ✅ The update check and release notes flow: releases v0.2.0 to v0.4.0 went through it.
 7. ✅ Remove the leftover SMM2 course-server code: `runtime/net/embed_server.*` and its boot call (2026-10-21). The
    settings were already SM35's own (`online.ini`, games/sm35/net.c); netcfg's notes now say so. `runtime/mods.c` stays:
    it is the generic mod folder (RECOMP_MOD_DIR, a romfs/ tree laid over the game's), not SMM2's mods.
@@ -217,9 +237,9 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 
 | Platform | Builds | Runs | Package |
 |---|---|---|---|
-| macOS arm64 (Metal) | ✅ | ✅ Course Practice on Nextendo | ✅ v0.1.0 |
-| Windows x86-64 (Vulkan) | ✅ CI | ⬜ | ✅ v0.1.0 (untested) |
-| Linux x86-64 / arm64 (Vulkan) | ✅ CI | ✅ arm64 under lavapipe (Docker) | ✅ v0.1.0 (untested on a GPU) |
-| iOS / iPadOS (Metal) | ✅ signed for the owner's iPad | ⏳ iPad offline | ⬜ the IPA kit |
-| Android arm64 (Vulkan) | ⬜ | ⬜ | ⬜ launcher-only APK |
+| macOS arm64 (Metal) | ✅ | ✅ Course Practice, 35-Player Battle on Nextendo | ✅ v0.4.0 |
+| Windows x86-64 (Vulkan) | ✅ CI | outside testers | ✅ v0.4.0 |
+| Linux x86-64 / arm64 (Vulkan) | ✅ CI | ✅ arm64 under lavapipe (Docker); GPUs: outside testers | ✅ v0.4.0 |
+| iOS / iPadOS (Metal) | ✅ signed for the owner's iPad | ✅ iPad, 60 fps | ✅ the IPA kit (`tools/ios_kit.sh`) |
+| Android arm64 (Vulkan) | ✅ | ✅ emulator (main menu) | ⬜ launcher-only APK |
 | Web | ⬜ | ⬜ | (local use only) |
