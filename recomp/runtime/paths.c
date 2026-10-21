@@ -119,10 +119,14 @@ void rt_paths_init(void) {
         const char *home = getenv("HOME");
         snprintf(root, sizeof root, "%s/Documents", home && *home ? home : "/tmp");
 #elif defined(__ANDROID__)
-        // Android: the app's external files folder, /sdcard/Android/data/<package>/files (adb push / a file manager):
-        // extracted/, fonts/, sysdata/, saves, settings, caches and the log
-        const char *ext = SDL_GetAndroidExternalStoragePath();
-        snprintf(root, sizeof root, "%s", ext ? ext : SDL_GetAndroidInternalStoragePath());
+        // Android: the app's external files folder, /sdcard/Android/data/<package>/files (a file manager):
+        // extracted/, fonts/, sysdata/, saves, settings, caches and the log. Its internal folder instead when the game
+        // files are there: on Android 11+ the app can't read what `adb push` puts in the external one (Permission
+        // denied), and tools/android_push_data.sh --internal copies them in as the app (debuggable test builds).
+        const char *ext = SDL_GetAndroidExternalStoragePath(), *in = SDL_GetAndroidInternalStoragePath();
+        char probe[1100];
+        snprintf(probe, sizeof probe, "%s/extracted/exefs/main", in ? in : "");
+        snprintf(root, sizeof root, "%s", in && access(probe, R_OK) == 0 ? in : ext ? ext : in);
 #elif defined(__linux__)
         // (the AppImage is read-only): $XDG_DATA_HOME/lasrecomp, ~/.local/share/lasrecomp by default
         const char *xdg = getenv("XDG_DATA_HOME"), *home = getenv("HOME");

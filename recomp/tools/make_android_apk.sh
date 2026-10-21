@@ -48,7 +48,7 @@ cat > "$W/AndroidManifest.xml" <<EOF
          no heap pointer tagging: host pointers stay plain 64-bit values -->
     <application android:label="$TITLE" android:icon="@mipmap/ic_launcher" android:hasCode="true" android:extractNativeLibs="false"
         android:allowNativeHeapPointerTagging="false" android:largeHeap="true" android:isGame="true"
-        android:appCategory="game" android:hardwareAccelerated="true">
+        android:appCategory="game" android:hardwareAccelerated="true"$( [ "${RECOMP_ANDROID_DEBUGGABLE:-0}" = 1 ] && echo ' android:debuggable="true"')>
         <activity android:name="org.libsdl.app.SDLActivity" android:exported="true"
             android:screenOrientation="sensorLandscape" android:launchMode="singleInstance"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen" android:preferMinimalPostProcessing="true"
