@@ -66,6 +66,11 @@ WEAK bool game_net_config(const char *key, char *out, size_t cap) {
     return false;
 }
 WEAK void game_net_config_set(const char *key, const char *val) { (void)key, (void)val; }
+// the backend when none is set (runtime/net/netcfg.h NetBackend; 0: ours), and the game's own words for a choice in
+// the Online settings (NULL: the runtime's)
+WEAK int game_net_default_backend(void) { return 0; }
+WEAK const char *game_net_backend_label(int backend) { (void)backend; return NULL; }
+WEAK const char *game_net_backend_desc(int backend) { (void)backend; return NULL; }
 
 // ---- save data written by the game (runtime/services/fs.c)
 WEAK void flags_ext_save_written(const char *path, uint64_t addr, int64_t off, int64_t size) {

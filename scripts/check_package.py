@@ -13,7 +13,7 @@ What it looks for, per file:
     prod.keys, setup.json, launcher.ini, <id>.ini, generated chunks main_000.c / sdk_table.c)
   - the magic bytes of Switch / Wii U containers, executables and assets (scripts/check_no_proprietary.py's list,
     without the host executable formats a package is made of)
-  - the SHA-256 of the v1.0.1 ExeFS files (recomp/games/sm35/versions.py: hashes of the player's own files)
+  - the SHA-256 of the v1.0.2 ExeFS files (recomp/games/sm35/versions.py: hashes of the player's own files)
   - lines shaped like console keys; text that looks like recompiled game code
   - a runtime executable with recompiled game functions linked in
 """
@@ -44,7 +44,7 @@ GAME_MAGICS = [m for m in cnp.MAGICS if m[2] not in HOST_MAGICS]
 HOST_EXTENSIONS = {'.exe', '.dll', '.so', '.dylib', '.a', '.lib', '.o', '.obj', '.pyd'}
 GAME_EXTENSIONS = (cnp.BLOCKED_EXTENSIONS - HOST_EXTENSIONS) | {'.bfttf', '.bfotf', '.cnmt', '.romfs', '.istorage'}
 CERT_EXTENSIONS = {'.pem', '.key', '.crt', '.der', '.p12', '.pfx', '.csr'}
-KNOWN_SHA256 = {h: f'the v1.0.1 ExeFS file "{n}"' for n, h in versions.EXEFS_SHA256.items()}
+KNOWN_SHA256 = {h: f'the v1.0.2 ExeFS file "{n}"' for n, h in versions.EXEFS_SHA256.items()}
 DATA_DIRS = {'extracted', 'exefs', 'romfs', 'sysdata', 'private', 'generated', 'mods-generated', '.gamebuild', 'save',
              'cache'}
 DATA_FILES = {'prod.keys', 'title.keys', 'dev.keys', 'setup.json', 'launcher.ini', 'larecomp.ini', f'{GAME_ID}.ini',

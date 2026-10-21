@@ -408,7 +408,9 @@ static uint32_t block_current(int64_t timeout_ns) {
             t->wait_result = R_CANCELLED;
             break;
         }
-        if (!kwait(timeout_ns, &ts)) {
+        bool ok = kwait(timeout_ns, &ts);
+        if (t->wait_kind == WAIT_NONE) break;  // (woken as the deadline passed: the waker's result, and mutex, stand)
+        if (!ok) {
             t->wait_kind = WAIT_NONE;
             t->wait_result = R_TIMEOUT;
             break;
@@ -420,6 +422,17 @@ static uint32_t block_current(int64_t timeout_ns) {
 
 static uint32_t svc_arbitrate_lock(uint32_t owner, uint64_t addr, uint32_t tag) {
     pthread_mutex_lock(&g_klock);
+    if (owner == t_cur->handle) {  // (it waits on itself, as on Horizon: name the self-deadlock, once per mutex)
+        static uint64_t logged[16];
+        static int nlogged;
+        bool seen = false;
+        for (int i = 0; i < nlogged; i++) seen |= logged[i] == addr;
+        if (!seen && nlogged < 16) {
+            logged[nlogged++] = addr;
+            LOG("[kernel] guest locks a mutex it already owns (addr %llx lr %llx)\n", (unsigned long long)addr,
+                (unsigned long long)t_cur->cpu.x[30]);
+        }
+    }
     uint32_t v = __atomic_load_n(u32p(addr), __ATOMIC_SEQ_CST);
     if (v != (owner | WAITERS_BIT)) {
         pthread_mutex_unlock(&g_klock);
@@ -451,14 +464,11 @@ static uint32_t svc_wait_process_wide_key(uint64_t mutex, uint64_t key, uint32_t
     t->wait_tag = tag;
     __atomic_store_n(u32p(key), 1, __ATOMIC_SEQ_CST);
     uint32_t r = block_current(timeout);
-    if (r != R_OK) {
-        // timed out / cancelled: still must reacquire the mutex
-        if (!mutex_acquire_or_mark(mutex, tag)) {
-            t->wait_kind = WAIT_MUTEX;
-            t->wait_addr = mutex;
-            block_current(-1);
-        }
-    }
+    // Only a signalled wait (R_OK) returns holding the mutex. Timed out or cancelled, it returns without it, as on
+    // Horizon: the SDK locks it again itself on 0xEA01 (nn::os TimedWait), so taking it here made that lock wait on
+    // its own thread (the Co-op search freeze). The thread is off the waiters of the condition variable and of the
+    // mutex (block_current); a waiters bit it leaves on the mutex word only sends the owner's unlock through
+    // ArbitrateUnlock.
     pthread_mutex_unlock(&g_klock);
     return r;
 }

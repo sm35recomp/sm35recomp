@@ -1,9 +1,9 @@
 # Progress and plan
 
-SM35 Recomp is Super Mario Bros. 35 v1.0.1, statically recompiled from the player's own dump. It boots to the main
-menu on macOS and the menus work. Gameplay is blocked on the online work: the game needs its online service even
-for Course Practice. Offline it shows Loading and then goes back to the menu. Online play goes through
-[Nextendo Network](https://nextendo.network) only, never Nintendo's servers. Bring-up notes are in
+SM35 Recomp is Super Mario Bros. 35 v1.0.2, statically recompiled from the player's own dump. On macOS it signs in to
+[Nextendo Network](https://nextendo.network), logs the game in to Nextendo's server, and Course Practice plays
+(2026-10-21). The game needs its online service even for Course Practice; online play goes through Nextendo only,
+never Nintendo's servers. Bring-up notes are in
 [recomp/docs/sm35-bringup.md](recomp/docs/sm35-bringup.md).
 
 ✅ done · 🔄 in progress · ⬜ not started · ⏳ waiting on the owner
@@ -27,41 +27,44 @@ for Course Practice. Offline it shows Loading and then goes back to the menu. On
   version number and the RomFS patching over the base NCA.
 - ✅ The iOS app compiles and is signed for the owner's iPad (not installed yet: the iPad is off Tailscale)
 
-## Phase 1: The online service, through Nextendo ⬜
+## Phase 1: The online service, through Nextendo 🔄
 
-The game reaches for its online service at boot and again before every course. The SMM2 `nextendo` branch already has
-most of the client side; it gets ported here and adapted to SM35.
+The game reaches for its online service at boot and again before every course. SMM2 Recomp's `nextendo` branch had
+most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) and adapted to SM35.
 
-1. ⬜ Port from SMM2's `nextendo` branch:
+1. ✅ Ported from SMM2:
    - HTTPS in `http_request`, with system and embedded roots
-   - Nextendo sign-in (OAuth PKCE on a loopback port; iOS sign-in sheet), with the client id `nxc_sdpEwnQyyHwl`
-   - the token store (Keychain or a private file) and the game token
-   - routing, and TLS pinned by SPKI
-   - the Online section of the overlay (Sign in / Sign out)
-   - the kernel condition-variable timeout fix (the Co-op freeze in SMM2)
-   - the null guard at `kernel.c:428`
-2. ⬜ DNS and routing: send SM35's online hostnames (nsd, dauth, aauth, BAAS, the NEX auth server, BCAT) to Nextendo;
-   anything else stays unreachable. List the hostnames from the binary.
-3. ⬜ Device and application auth against `nx-dauth`, and the NSA ID token with `acc`'s IManagerForApplication (the
-   path SMM2's branch drives).
-4. ⬜ Nintendo Switch Online membership check (the game requires it): answer it as a member when signed in to
-   Nextendo.
-5. ⬜ BCAT, `bcat:u`: a real service in place of today's logging stub (with pretend-online the game crashes there).
-   The delivery-cache storage and its files come from Nextendo's account server (BCAT schedule/data), with an empty
-   cache when offline. This feeds Daily Challenges and Special Battle events.
-6. ⬜ NEX login to Nextendo's SMB35 server: authentication, then secure connection; PRUDP over UDP.
-7. ⬜ The error applet: when a network step fails, the game opens the system error dialog. `am` has to run the
-   library-applet flow (create, push the argument, start, signal the end) and show the message itself, rather than
-   send the player back to the menu without a word. SMM2's branch hits the same path.
-8. ⬜ An offline mode that's honest: when the player isn't signed in, the game says so (through 7) instead of looping
-   between Loading and the menu.
-9. ⬜ Tests: the request and token paths against a local mock (as `tools/net_mock.py` on SMM2's branch). A live
-   check against Nextendo only once the owner signs in.
+   - the Nextendo sign-in (OAuth PKCE on a loopback port), with this app's client id `nxc_sdpEwnQyyHwl` (`game.mk`)
+   - the token store and the game token. On macOS it's a private file (`net/nextendo.txt`, mode 0600), as on Windows and Linux: with ad-hoc
+     signing, the Keychain asked again after every update and the game waited on the dialog. iOS keeps the Keychain.
+   - routing (the game's hosts to Nextendo), TLS pinned by SPKI, the RS256 ID token carrying the game token
+   - the Online settings (the overlay's tab is "Online" here: the game has no mods), the kernel condition-variable
+     timeout fix
+   - `RECOMP_NEXTENDO_SIGN_IN=1` starts the sign-in with the game (no F1 over a remote desktop)
+2. ✅ Backend Nextendo by default once signed in; "Offline" when signed out (`games/sm35/net.c`, `online.ini`).
+3. ✅ `acc`: LoadOpenContext returns the user's IManagerForApplication (its absence crashed the game's online check);
+   the network service account, the ID token.
+4. ✅ `bcat:u`: an empty delivery cache, as Ryujinx (it was a logging stub: crash at the first course).
+5. ✅ NEX login, live (2026-10-21): the auth server (`g21f12900-lp1.s.n.srv.nintendo.net`, TLS WebSocket, pinned),
+   then the secure server (port 60014). Fixed on the way: `getaddrinfo` gave the address byte-swapped.
+6. ✅ The update is **1.0.2** (title version 0x20000), which Nextendo requires; the recomp called it 1.0.1 before.
+7. 🔄 iOS sign-in: Nextendo accepts only the loopback redirect for this client, so the iOS sheet runs the same listener
+   and closes when the sign-in ends (built; to test on the owner's iPad).
+8. ⬜ Special Battle: Nextendo publishes the event as `Dat/sp_battle.dat` in a zip at
+   `GET https://nextendo.network/api/bcat/0100277011f1a000` (their console app lays it over the RomFS). Fetch it at
+   start when signed in and lay it over the RomFS.
+9. ⬜ The error applet: when a network step fails, the game opens the system error dialog. `am` has to run the
+   library-applet flow and show the message, rather than send the player back without a word.
+10. ⬜ Offline, signed out: the game says why (through 9) instead of returning to the menu.
+11. ✅ Tests: the request, sign-in and token paths against a local mock (`tools/test_net.sh`, 27 cases; one combined
+    run in five failed with no output under load, not reproduced in 46 runs since: watch it).
 
-## Phase 2: Single-player gameplay ⬜ (needs Phase 1)
+## Phase 2: Single-player gameplay 🔄
 
-1. ⬜ Course Practice: every course starts, plays and clears; saving works (`save/save_0`).
-2. ⬜ Rendering in courses. Fix the `FS translate failed: bindless tex` fragment shader (seen as a course loads); go
+1. 🔄 Course Practice: 1-1 starts and plays (run, scroll, Goombas, Game Over, retry). Every course starts, plays and
+   clears; saving works (`save/save_0`).
+2. 🔄 Rendering in courses. ✅ Bindless textures on Metal (the sprite shader takes each sprite's texture handle from
+   its vertices: the course was black). ⬜ The same in the Vulkan / GLSL path (Windows, Linux, Android). ⬜ Go
    through every course theme (overworld, underground, castle, water, the 8-4 style ones); check the
    35-player screen layout (the other players' small screens around the main one).
 3. ⬜ Audio: BGM streams (`.bfstm`), sound effects, Opus voice/stream decoding. `hwopus` is a logging stub today.
@@ -145,7 +148,7 @@ most of the client side; it gets ported here and adapted to SM35.
 
 | Platform | Builds | Runs | Package |
 |---|---|---|---|
-| macOS arm64 (Metal) | ✅ | ✅ main menu | ✅ v0.1.0 |
+| macOS arm64 (Metal) | ✅ | ✅ Course Practice on Nextendo | ✅ v0.1.0 |
 | Windows x86-64 (Vulkan) | ✅ CI | ⬜ | ✅ v0.1.0 (untested) |
 | Linux x86-64 / arm64 (Vulkan) | ✅ CI | ⬜ | ✅ v0.1.0 (untested) |
 | iOS / iPadOS (Metal) | ✅ signed for the owner's iPad | ⏳ iPad offline | ⬜ the IPA kit |

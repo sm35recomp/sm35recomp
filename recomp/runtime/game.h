@@ -19,5 +19,10 @@
 #define GAME_DISPLAY_VERSION "1.0.0"  // the version the game shows (control data; am GetDisplayVersion)
 #endif
 
+#ifndef GAME_NEXTENDO_CLIENT_ID
+#define GAME_NEXTENDO_CLIENT_ID ""  // the app's Nextendo Network client id (empty: no Nextendo sign-in)
+#endif
+
 #define GAME_EXE GAME_ID "recomp"       // the executable's name (logs and crash reports)
 #define GAME_SETTINGS GAME_ID ".ini"    // settings file in the data root
+#define GAME_URL_SCHEME GAME_EXE         // iOS: the sign-in redirect, GAME_URL_SCHEME "://callback"

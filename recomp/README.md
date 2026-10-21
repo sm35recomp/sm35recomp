@@ -1,6 +1,6 @@
 # SM35 Recomp
 
-A native port of Super Mario Bros. 35 **v1.0.1** built by **static recompilation** of the player's own dump: the
+A native port of Super Mario Bros. 35 **v1.0.2** built by **static recompilation** of the player's own dump: the
 game's AArch64 code is translated to C ahead of time and compiled for the host, its system calls run on a native
 runtime, and its NVN graphics run on Metal (macOS, iOS) or Vulkan (Windows, Linux, Android).
 
@@ -31,12 +31,12 @@ Requirements: Xcode command line tools (clang), Homebrew `sdl3`, Python 3 (3.12+
 generated C and the build. No FFmpeg: like SMM2, the game has the movie library (`subsdk1`) linked but plays no
 movies, so `games/sm35/game.mk` says `GAME_MOVIES := 0` and the movie HLE isn't built.
 
-You need your own extracted dump: the base game's (v1.0.0) RomFS and the v1.0.1 update's ExeFS (`main`, `sdk`,
+You need your own extracted dump: the base game's (v1.0.0) RomFS and the v1.0.2 update's ExeFS (`main`, `sdk`,
 `subsdk0`, `subsdk1`, `rtld`, `main.npdm`) and RomFS. By default `make` looks in `~/smm-work/sm35/` (`base-romfs`,
 `v101-exefs`, `v101-romfs`); pass `DUMP_BASE_ROMFS=`, `DUMP_UPDATE_EXEFS=`, `DUMP_UPDATE_ROMFS=` for other places.
 
     make -C recomp venv        # once: tools/venv with capstone, unicorn, lz4
-    make -C recomp sm35        # setup (checks the v1.0.1 build ids and hashes, links the RomFS), recompile, build
+    make -C recomp sm35        # setup (checks the v1.0.2 build ids and hashes, links the RomFS), recompile, build
     make -C recomp run-sm35    # play: runs build/sm35/sm35recomp from private/sm35 (saves, settings, caches there)
 
 `make sm35` runs three steps you can also run alone (`make -C recomp GAME=sm35 setup | gen | all`): `setup` lays the
@@ -87,13 +87,13 @@ Releases are a **launcher plus recompiler** (`../DECISIONS.md`): a package is th
 player's files are set up (and after Quit > Quit to Start Screen, the Mods tab's Game files, or `--setup`), the setup
 screen takes:
 
-1. the game: NSP / XCI files (the base game and the 1.0.1 update) or folders with the extracted ExeFS / RomFS;
+1. the game: NSP / XCI files (the base game and the 1.0.2 update) or folders with the extracted ExeFS / RomFS;
 2. `prod.keys` and the firmware's NCA folder (suggested from Ryujinx / yuzu / their forks when they have them);
 
 and then runs, with progress and an error card per step:
 
 1. `games/sm35/setup.py --source ...`: finds the ExeFS / RomFS in what was chosen, extracts NSP / XCI with hactool and
-   the player's keys, checks the ExeFS against `games/sm35/versions.py` (the v1.0.1 build ids and the SHA-256 of the
+   the player's keys, checks the ExeFS against `games/sm35/versions.py` (the v1.0.2 build ids and the SHA-256 of the
    ExeFS files: hashes of the player's own files, never the files), and lays out `extracted/`;
 2. `games/sm35/sysdata.py`: the shared fonts and system data from the firmware;
 3. `runtime/gamebuild.c`: the generator (the package's own Python) and the compiler (the package's zig) build the game

@@ -1,5 +1,6 @@
-// The account's online identity for the game's own NEX client (runtime/services/acc.c, backend local-nex): a
-// network service account ID and an ID token.
+// The account's online identity for the game's own NEX client (runtime/services/acc.c, backends local-nex /
+// nextendo): a network service account ID and an ID token (nextendo: an RS256 token carrying the Nextendo account's
+// game token, runtime/net/token.c; the ID is the account's PID, runtime/net/nextendo.h).
 //
 // For now both are local: the ID is a random 64-bit number and the token a JWT signed (HS256) with a random local
 // key, both made on first use and kept in net/account.txt in the data folder (private; never logged). The local NEX

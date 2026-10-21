@@ -63,8 +63,9 @@ typedef struct {
 typedef struct {
     uint32_t handle_offset;  // byte offset of the texture handle in the bound texture cbuf
     uint8_t type;            // TEXTYPE_*
-    bool shadow, is_array, is_image, bindless;
-    uint32_t bindless_cbuf, bindless_offset;
+    bool shadow, is_array, is_image;
+    bool bindless;           // one of the bindless slots (below): its handle is the draw's bindless table entry
+    uint32_t bindless_cbuf, bindless_offset;  // (bindless_offset: that entry)
 } ShaderTexture;
 
 typedef struct {
@@ -92,10 +93,20 @@ typedef struct {
     char *gs_params;
     // vertex with vs_fn: the entry point's parameters for what vs_main needs, and the arguments that pass them
     char *vs_entry_params, *vs_call_args;
+    // Bindless textures (TEX.B whose handle a register holds; MSL fragment only): the shader gets BINDLESS_SLOTS
+    // texture slots (ShaderTexture.bindless) and a table of their handles (constant uint[BINDLESS_SLOTS] at buffer
+    // BINDLESS_TABLE_INDEX), and samples the slot whose handle equals the register's. The renderer fills both per
+    // draw from the handles the draw's vertices carry: bl_attr is the input varying (its address, 0x80 + 16 * n +
+    // 4 * component) the handle register was interpolated from, -1 when the handle comes from elsewhere.
+    bool uses_bindless;
+    int bl_attr;
     uint32_t local_mem;     // bytes of local memory
     uint32_t num_insts;
     char error[256];        // set when translation fails
 } ShaderInfo;
+
+#define BINDLESS_SLOTS 8
+#define BINDLESS_TABLE_INDEX 28
 
 // Global memory (LDG/STG) is addressed through one buffer that wraps the guest heap.
 #define GMEM_BUFFER_INDEX 17
@@ -117,5 +128,8 @@ extern const uint8_t *maxwell_dbg_vs;
 // code: shader binary (with the 0x50-byte SPH header for graphics stages)
 ShaderInfo *maxwell_translate(const uint8_t *code, size_t max_size, int stage, const ShaderKey *key);
 void maxwell_free(ShaderInfo *s);
+// The vertex shader's input attribute address (0x80 + 16 * n + 4 * component) that it writes unchanged to output
+// address out_addr (a register loaded with LD a[in] and stored with ST a[out_addr]), or -1
+int maxwell_vs_passthrough(const uint8_t *code, size_t max_size, uint32_t out_addr);
 // Disassemble for debugging (writes text to f).
 void maxwell_disassemble(const uint8_t *code, size_t max_size, int stage, void *file);

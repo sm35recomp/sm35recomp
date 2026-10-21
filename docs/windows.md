@@ -1,6 +1,6 @@
 # SM35 Recomp on Windows
 
-SM35 Recomp (`recomp/`, see [recomp/README.md](../recomp/README.md)) is Super Mario Bros. 35 v1.0.1 itself,
+SM35 Recomp (`recomp/`, see [recomp/README.md](../recomp/README.md)) is Super Mario Bros. 35 v1.0.2 itself,
 recompiled from **your own dump** into a native Windows program that draws with Vulkan. The download contains no
 game files. Its setup screen takes your dump, checks it, and recompiles the game code from it on your PC.
 
@@ -17,9 +17,9 @@ game files. Its setup screen takes your dump, checks it, and recompiles the game
   - Windows 10 or 11, 64-bit.
   - A CPU with AVX2: Intel Haswell (2013) or newer, AMD Zen or Excavator or newer.
   - A graphics driver with **Vulkan 1.3**. Current NVIDIA, AMD and Intel drivers have it.
-- **Your own dump of Super Mario Bros. 35 with the 1.0.1 update**, either of:
-  - the game's **NSP or XCI** and the **1.0.1 update's NSP** (NSZ / XCZ must be decompressed first), or
-  - folders with the extracted files: the **1.0.1 ExeFS** (`main`, `sdk`, `subsdk0`, `subsdk1`, `rtld`, `main.npdm`)
+- **Your own dump of Super Mario Bros. 35 with the 1.0.2 update**, either of:
+  - the game's **NSP or XCI** and the **1.0.2 update's NSP** (NSZ / XCZ must be decompressed first), or
+  - folders with the extracted files: the **1.0.2 ExeFS** (`main`, `sdk`, `subsdk0`, `subsdk1`, `rtld`, `main.npdm`)
     and the RomFS (the base game's and the update's, or an emulator's "Extract RomFS" of the updated game).
 - **Your console's `prod.keys` and firmware** (the folder of its system `.nca` files, for example Ryujinx's
   `%APPDATA%\Ryujinx\bis\system\Contents\registered`). The game's fonts and system data come from the firmware.
@@ -58,7 +58,7 @@ Start `sm35recomp.exe`. Until the game is set up it shows the setup screen inste
 
 Then press **Set up and play**. It:
 
-1. checks the game files against the known 1.0.1 files (the build ids and SHA-256 of the ExeFS; an NSP / XCI is read
+1. checks the game files against the known 1.0.2 files (the build ids and SHA-256 of the ExeFS; an NSP / XCI is read
    with hactool and your keys, and extracted into `extracted\`), and lays them out in `extracted\` (links where
    Windows allows them, Developer Mode; else hard links on the same drive; copies as a last resort);
 2. copies the console's shared fonts and a few system data archives from the firmware into `fonts\` and `sysdata\`;
@@ -119,7 +119,7 @@ To also build the game code on the Mac from your own dump (for testing; never sh
 
 - **"needs a CPU with AVX2"**: the game code is compiled for x86-64-v3, so older CPUs can't run it.
 - **The setup screen says a file can't be used / the version is wrong:** it names the problem. The recomp needs
-  exactly 1.0.1: add the update's NSP (or its extracted ExeFS) next to the base game.
+  exactly 1.0.2: add the update's NSP (or its extracted ExeFS) next to the base game.
 - **"hactool failed" / no system titles in the firmware:** `prod.keys` must be your console's, dumped after the
   firmware the game and the firmware folder need (a current Lockpick_RCM).
 - **"The game code didn't build"**: the screen names the failing step, and `sm35recomp.log` has the compiler's last

@@ -1,5 +1,5 @@
 // ssl (the system's TLS service) on Mbed TLS (third_party/mbedtls, Apache-2.0): TLS 1.2 client connections over the
-// game's own host sockets (bsd_host.c, backend local-nex). Interfaces as switchbrew documents them: ISslService
+// game's own host sockets (bsd_host.c, backends local-nex / nextendo). Interfaces as switchbrew documents them: ISslService
 // (0 CreateContext, 5 SetInterfaceVersion), ISslContext (options, PKI imports, 2 CreateConnection) and
 // ISslConnection (0 SetSocketDescriptor, 1 SetHostName, 2 SetVerifyOption, 3 SetIoMode, 8 DoHandshake,
 // 9 DoHandshakeGetServerCert, 10 Read, 11 Write, 12 Pending, 13 Peek, 14 Poll, 22 SetOption, 26 SetNextAlpnProto ...).
@@ -9,6 +9,10 @@
 //   tls_trust=local-ca  the server's certificate must chain to the local test CA (net/test-ca.pem, made by
 //                       tools/nex_test_server), and match the host name
 //   tls_trust=any       any certificate, and only towards a local address (the test server)
+//   backend nextendo    pinned: Nextendo's game server presents a self-signed certificate, so the chain is not
+//                       checked (verify optional); after the handshake the certificate's public key
+//                       (SubjectPublicKeyInfo, DER) must hash (SHA-256) to the pin (net_tls_pin), or the connection is
+//                       refused (R_VERIFY_FAILED) before the game sends anything. Never a fallback to "any".
 // Host name: when the game names an address (it connects by IP), the name last resolved to that address is used for
 // SNI and the check instead ("rebuilt"). ALPN: only http/1.1 is offered (the game's WebSocket upgrade is HTTP/1.1).
 //
@@ -22,6 +26,8 @@
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/error.h"
+#include "mbedtls/md.h"
+#include "mbedtls/pk.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/x509_crt.h"
 #include "psa/crypto.h"
@@ -108,7 +114,9 @@ static void log_data(const char *dir, const SslConn *c, const uint8_t *p, size_t
         line[o++] = ch == '\n' ? '|' : (ch >= 0x20 && ch < 0x7f) ? (char)ch : '.';
     }
     line[o] = 0;
-    LOG("[ssl] %s %s %zu bytes: %s%s\n", c->sni[0] ? c->sni : "?", dir, n, line, n > show ? " ..." : "");
+    char shown[sizeof line + 16];
+    net_log_redact(line, shown, sizeof shown);  // (NEX station URLs carry the player id: "PID=<hidden>")
+    LOG("[ssl] %s %s %zu bytes: %s%s\n", c->sni[0] ? c->sni : "?", dir, n, shown, n > show ? " ..." : "");
 }
 
 // ---- the BIO: the game's socket, non-blocking (waits happen in io_wait, outside the connection's lock)
@@ -126,6 +134,22 @@ static bool is_ip(const char *s) {
     unsigned a, b, c, d;
     char t;
     return sscanf(s, "%u.%u.%u.%u%c", &a, &b, &c, &d, &t) == 4;
+}
+
+bool ssl_pin_check(const mbedtls_x509_crt *peer, const uint8_t pin[32]) {
+    if (!peer || !peer->version) return false;
+    unsigned char der[2048];  // (mbedtls writes the DER at the end of the buffer)
+    int n = mbedtls_pk_write_pubkey_der(&peer->pk, der, sizeof der);
+    if (n <= 0) return false;
+    uint8_t h[32];
+    if (mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), der + sizeof der - n, (size_t)n, h)) return false;
+    uint8_t diff = 0;
+    for (int i = 0; i < 32; i++) diff |= h[i] ^ pin[i];
+    return diff == 0;
+}
+
+static const char *trust_name(NetTrust t) {
+    return t == NET_TRUST_ANY ? "any certificate (local test server)" : t == NET_TRUST_PINNED ? "Nextendo's certificate (pinned)" : "local test CA";
 }
 
 // Set Mbed TLS up for this connection under the trust policy; false = refused (logged)
@@ -158,6 +182,10 @@ static bool conn_setup(SslConn *c) {
     mbedtls_ssl_conf_max_tls_version(&c->conf, MBEDTLS_SSL_VERSION_TLS1_2);
     if (trust == NET_TRUST_ANY) {
         mbedtls_ssl_conf_authmode(&c->conf, MBEDTLS_SSL_VERIFY_NONE);
+    } else if (trust == NET_TRUST_PINNED) {
+        uint8_t pin[32];
+        if (!net_tls_pin(pin)) { LOG("[ssl] %s: no certificate pin: refused\n", c->sni); return false; }
+        mbedtls_ssl_conf_authmode(&c->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);  // (self-signed: the pin is the check)
     } else {
         int r = mbedtls_x509_crt_parse_file(&c->ca, net_tls_ca_path());
         if (r) {
@@ -174,8 +202,7 @@ static bool conn_setup(SslConn *c) {
     mbedtls_ssl_set_bio(&c->ssl, c, bio_send, bio_recv, NULL);
     c->ready = true;
     LOG("[ssl] connection to %s (%s): TLS 1.2, trust: %s, verify option %#x from the game (not used)\n",
-        c->sni[0] ? c->sni : "?", pa, trust == NET_TRUST_ANY ? "any certificate (local test server)" : "local test CA",
-        c->verify_opt);
+        c->sni[0] ? c->sni : "?", pa, trust_name(trust), c->verify_opt);
     return true;
 }
 
@@ -240,6 +267,13 @@ static void handshake(SslConn *c, IpcReq *req, IpcResp *resp) {
     uint32_t res;
     int r = run(c, op_handshake, NULL, 0, &res);
     if (r < 0) { resp->result = res; return; }
+    uint8_t pin[32];
+    if (net_tls_trust() == NET_TRUST_PINNED && (!net_tls_pin(pin) || !ssl_pin_check(mbedtls_ssl_get_peer_cert(&c->ssl), pin))) {
+        LOG("[ssl] %s: certificate pin mismatch (expected Nextendo's game server); refused\n", c->sni);
+        c->verify_result = R_VERIFY_FAILED;  // (not done: no read or write goes through)
+        resp->result = R_VERIFY_FAILED;
+        return;
+    }
     c->done = true;
     const char *alpn = mbedtls_ssl_get_alpn_protocol(&c->ssl);
     LOG("[ssl] %s: handshake done (%s, %s%s%s)\n", c->sni, mbedtls_ssl_get_version(&c->ssl),

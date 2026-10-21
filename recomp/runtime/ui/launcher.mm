@@ -3,7 +3,7 @@
 // the game. Modelled on melee-pc's launcher (DECISIONS.md, "Releases: a launcher plus recompiler per platform"); the
 // window, render loop and update check follow LAS Recomp's start screen (UPSTREAM.md).
 //
-//   1. Your game: Super Mario Bros. 35 with the 1.0.1 update - its NSP / XCI files, or folders of the extracted
+//   1. Your game: Super Mario Bros. 35 with the 1.0.2 update - its NSP / XCI files, or folders of the extracted
 //      ExeFS and RomFS. games/<id>/setup.py checks the version (build ids and hashes of the player's own files against
 //      games/<id>/versions.py), extracts NSP / XCI with hactool and the player's prod.keys, and lays the files out in
 //      <data>/extracted.
@@ -113,7 +113,7 @@ void vk_imgui_backend_shutdown(void);
 #define RELEASES_API "https://api.github.com/repos/sm35recomp/sm35recomp/releases/latest"
 #define RELEASES_PAGE "https://github.com/sm35recomp/sm35recomp/releases"
 
-static const char MAIN_101[] = "ef1e5ea4171b94b0f22a6c565bb300175a6bf5ee";  // (games/sm35/versions.py: v1.0.1 main build id)
+static const char MAIN_101[] = "ef1e5ea4171b94b0f22a6c565bb300175a6bf5ee";  // (games/sm35/versions.py: v1.0.2 main build id)
 static const char MAIN_100[] = "43c0f80d3d1a7bd427282f5422b6657c11841db1";  // (v1.0.0: the base game without the update)
 static const char *FONT_STD = "fonts" SEP "nintendo_udsg-r_std_003.bfttf";
 
@@ -290,8 +290,8 @@ static Check check_game_source(const std::string &p) {
     for (const char *pl : places) {
         std::string id = nso_build_id(p + pl + SEP "main");
         if (id.empty()) continue;
-        if (starts_with(id, MAIN_101)) c.text = "folder: game code 1.0.1";
-        else if (starts_with(id, MAIN_100)) c.text = "folder: game code 1.0.0 - also add the 1.0.1 update", c.warn = true;
+        if (starts_with(id, MAIN_101)) c.text = "folder: game code 1.0.2";
+        else if (starts_with(id, MAIN_100)) c.text = "folder: game code 1.0.0 - also add the 1.0.2 update", c.warn = true;
         else c.text = "folder: game code of another version", c.warn = true;
         return c;
     }
@@ -525,9 +525,9 @@ static void *job_thread(void *) {
             fail(0, "The game files weren't set up", "Check the files you chose and try again.", logs + SEP "setup.log");
             return NULL;
         }
-        set_step(0, DONE, "Super Mario Bros. 35 1.0.1");
+        set_step(0, DONE, "Super Mario Bros. 35 1.0.2");
     } else {
-        set_step(0, SKIPPED, "already set up: Super Mario Bros. 35 1.0.1");
+        set_step(0, SKIPPED, "already set up: Super Mario Bros. 35 1.0.2");
     }
     g_progress = 0.2f;
 
@@ -549,7 +549,7 @@ static void *job_thread(void *) {
     }
     g_progress = 0.25f;
 
-    // 3. the game code (setup.py checked the ExeFS against the known 1.0.1 hashes: a library built from it before is
+    // 3. the game code (setup.py checked the ExeFS against the known 1.0.2 hashes: a library built from it before is
     // still the right one, wherever the files came from)
     if (!gamelib_present(root.c_str())) {
         set_step(2, RUNNING, "Starting...");
@@ -980,7 +980,7 @@ extern "C" void launcher_run(const char *root) {
             ImGui::SetCursorPosX(x0 + contentw - ImGui::CalcTextSize(RECOMP_VERSION).x);
             ImGui::TextDisabled(RECOMP_VERSION);
             ImGui::PushTextWrapPos(x0 + contentw);
-            ImGui::TextDisabled("Super Mario Bros. 35 v1.0.1, recompiled on your computer from your own game. Nothing of "
+            ImGui::TextDisabled("Super Mario Bros. 35 v1.0.2, recompiled on your computer from your own game. Nothing of "
                                 "the game comes with this program: point it at your dump, and it does the rest.");
             ImGui::PopTextWrapPos();
             ImGui::EndGroup();
@@ -1004,9 +1004,9 @@ extern "C" void launcher_run(const char *root) {
             if (job == 0) {
                 // ---- 1. the game
                 card_begin("##c1", "1", "Your game", s);
-                wrapped(DIM, "Super Mario Bros. 35 with the 1.0.1 update: the game's NSP or XCI and the update's NSP, or "
+                wrapped(DIM, "Super Mario Bros. 35 with the 1.0.2 update: the game's NSP or XCI and the update's NSP, or "
                              "folders with their extracted ExeFS and RomFS (e.g. an emulator's \"Extract RomFS / ExeFS\" "
-                             "of the updated game). The version is checked against the known 1.0.1 files.");
+                             "of the updated game). The version is checked against the known 1.0.2 files.");
                 int remove_at = -1;
                 for (size_t i = 0; i < g_cfg.game.size(); i++) {
                     // one line each: the check's mark, the name (the whole path on hover), what it is, Remove

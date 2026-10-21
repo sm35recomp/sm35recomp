@@ -50,7 +50,7 @@ class PackageCheckTests(unittest.TestCase):
     def test_dump_files_fail(self):
         cases = {
             'extracted/exefs/x': b'data',                         # a set-up data folder
-            'renamed.bin': fake_nso(versions.BUILD_IDS['1.0.1']['main']),  # an executable of the game
+            'renamed.bin': fake_nso(versions.BUILD_IDS['1.0.2']['main']),  # an executable of the game
             'fonts/nintendo_udsg-r_std_003.bfttf': b'x',          # a console font
             'sm35game.dylib': b'\xcf\xfa\xed\xfe',                # the game code built from a dump
             'lib/libsm35game.so': b'\x7fELF',                       # (Android's name)
@@ -70,7 +70,7 @@ class PackageCheckTests(unittest.TestCase):
                 p.unlink()
 
     def test_known_exefs_hash_fails(self):
-        # a file whose SHA-256 is a known v1.0.1 ExeFS file's: simulated by putting our file's hash in the table
+        # a file whose SHA-256 is a known v1.0.2 ExeFS file's: simulated by putting our file's hash in the table
         p = self.pkg / 'blob.bin'
         p.write_bytes(b'not really the game')
         import hashlib
@@ -119,18 +119,18 @@ class SetupTests(unittest.TestCase):
         d = self.dir / name
         d.mkdir()
         (d / 'main').write_bytes(fake_nso(main_id))
-        (d / 'sdk').write_bytes(fake_nso(versions.BUILD_IDS['1.0.1']['sdk']))
-        (d / 'subsdk0').write_bytes(fake_nso(versions.BUILD_IDS['1.0.1']['subsdk0']))
-        (d / 'subsdk1').write_bytes(fake_nso(versions.BUILD_IDS['1.0.1']['subsdk1']))
+        (d / 'sdk').write_bytes(fake_nso(versions.BUILD_IDS['1.0.2']['sdk']))
+        (d / 'subsdk0').write_bytes(fake_nso(versions.BUILD_IDS['1.0.2']['subsdk0']))
+        (d / 'subsdk1').write_bytes(fake_nso(versions.BUILD_IDS['1.0.2']['subsdk1']))
         (d / 'rtld').write_bytes(b'x')
         (d / 'main.npdm').write_bytes(b'x')
         return d
 
     def test_versions(self):
-        self.assertEqual(versions.version_of_build_id('main', versions.BUILD_IDS['1.0.1']['main'] + '00'), '1.0.1')
+        self.assertEqual(versions.version_of_build_id('main', versions.BUILD_IDS['1.0.2']['main'] + '00'), '1.0.2')
         self.assertEqual(versions.version_of_build_id('main', versions.BUILD_IDS['1.0.0']['main']), '1.0.0')
         self.assertIsNone(versions.version_of_build_id('main', '00' * 16))
-        self.assertEqual(versions.display_version(versions.UPDATE_TITLE_ID, versions.UPDATE_VERSION), '1.0.1')
+        self.assertEqual(versions.display_version(versions.UPDATE_TITLE_ID, versions.UPDATE_VERSION), '1.0.2')
 
     def test_base_game_only_says_which_version(self):
         self.exefs('exefs', versions.BUILD_IDS['1.0.0']['main'])
@@ -141,7 +141,7 @@ class SetupTests(unittest.TestCase):
 
     def test_modified_exefs_is_refused(self):
         # the right build ids, but not the known files (hashes differ)
-        d = self.exefs('exefs', versions.BUILD_IDS['1.0.1']['main'])
+        d = self.exefs('exefs', versions.BUILD_IDS['1.0.2']['main'])
         with self.assertRaises(setup.SetupError) as e:
             setup.check_exefs(str(d))
         self.assertEqual(e.exception.code, 'BAD_HASH')

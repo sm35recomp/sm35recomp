@@ -6,7 +6,7 @@
 
 ---
 
-SM35 Recomp turns **your own legally dumped** Super Mario Bros. 35 (with its v1.0.1 update) into a native program
+SM35 Recomp turns **your own legally dumped** Super Mario Bros. 35 (with its v1.0.2 update) into a native program
 for macOS, Windows and Linux (iOS, iPadOS and Android from source). The game's code is translated to C and compiled
 for your machine, its system calls run on a native runtime, and its graphics run on Metal or Vulkan. It isn't an
 emulator: there is no CPU or GPU emulation at run time.
@@ -21,8 +21,8 @@ It is a fork of [SMM2 Recomp](https://github.com/smm2recomp/smm2recomp), which s
 
 - This repository and its releases contain **no** game code, assets, keys or firmware, and nothing derived from them.
 - You need your own dump of the game, made from a console and cartridge or download you own: the base game, the
-  **v1.0.1 update**, and your console's `prod.keys` and firmware.
-- The release is a *launcher plus recompiler*: its setup screen checks your files against the known v1.0.1 version,
+  **v1.0.2 update**, and your console's `prod.keys` and firmware.
+- The release is a *launcher plus recompiler*: its setup screen checks your files against the known v1.0.2 version,
   and recompiles the game code on your machine. What it builds stays on your machine: don't share it.
 - Every commit and every release package is checked for game content (`scripts/check_no_proprietary.py`,
   `scripts/check_package.py`).
@@ -46,7 +46,7 @@ are trademarks of Nintendo.
    `SM35Recomp-macos-arm64.zip`, `SM35Recomp-windows-x86_64.zip` or `SM35Recomp-linux-<arch>.tar.gz`.
 2. Unpack it and start `SM35Recomp.app` / `sm35recomp.exe` / `./sm35recomp`.
 3. The setup screen asks for:
-   - your Super Mario Bros. 35 with the 1.0.1 update: the NSP / XCI files, or folders with the extracted ExeFS and
+   - your Super Mario Bros. 35 with the 1.0.2 update: the NSP / XCI files, or folders with the extracted ExeFS and
      RomFS;
    - your `prod.keys` and the firmware folder (read where they are, never copied; key values are never shown or
      logged).

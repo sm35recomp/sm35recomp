@@ -1,5 +1,5 @@
-// A small blocking HTTP/1.1 client for mods that talk to a self-hosted server (plain http:// on a LAN or localhost; no
-// TLS). Portable: BSD sockets on macOS / Linux / iOS, Winsock on Windows. Each request opens its own connection
+// A small blocking HTTP/1.1 client for mods that talk to a self-hosted server (http:// on a LAN or localhost) or to
+// nextendo.network (https://, TLS 1.2 with the certificate verified: see http.c). Portable: BSD sockets on macOS / Linux / iOS, Winsock on Windows. Each request opens its own connection
 // ("Connection: close"), so it is safe from any thread; calls block for at most the timeout given.
 #pragma once
 #include <stddef.h>
@@ -11,9 +11,10 @@ typedef struct {
     char error[96];  // why status is 0
 } HttpResponse;
 
-// method "GET" / "POST" / ...; url "http://host[:port]/path?query"; headers: extra header lines, each ending in
+// method "GET" / "POST" / ...; url "http[s]://host[:port]/path?query"; headers: extra header lines, each ending in
 // "\r\n" (or NULL); body / body_len: the request body (NULL / 0 for none); timeout_ms bounds connect, each send and
-// each read. Returns the status (0 on failure). Free the response with http_free.
+// each read (and the TLS handshake). On a TLS failure `error` is "TLS: certificate not trusted" or "TLS: handshake
+// failed". Returns the status (0 on failure). Free the response with http_free.
 int http_request(const char *method, const char *url, const char *headers, const void *body, size_t body_len,
                  int timeout_ms, HttpResponse *out);
 void http_free(HttpResponse *r);
