@@ -413,9 +413,11 @@ gen-objs: $(GEN_OBJ)
 # Runtime objects only (no generated code, no link): quick compile check, needs no game files
 runtime-objs: $(RT_OBJ) $(MBEDTLS_OBJ) $(BACKEND_OBJ) $(UI_OBJ)
 
-# Recompiler unit tests (no game files)
+# Recompiler tests against Unicorn: the FP/SIMD lowering (no game files), then the lifter on a sample of the game's own
+# instructions (needs `make setup`: its main executable; skipped without it)
 test-tools:
-	cd tools && ../$(PY) test_lift.py
+	cd tools && ../$(PY) test_simd.py --encodings 300 --cases 4
+	$(if $(wildcard $(GAMEFILES)/exefs/main),cd tools && ../$(PY) test_lift.py ../$(GAMEFILES)/exefs/main $(GUEST_ORIGIN) 2000,@echo "test_lift.py skipped: no $(GAMEFILES)/exefs/main (make setup)")
 
 # One command per game: `make sm35` = setup + gen + build. (Then `make run-sm35`.)
 sm35:
