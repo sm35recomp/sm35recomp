@@ -111,13 +111,14 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
      course 1-1, both players, the Ranking screen with the same result on both (coins 200 / 180), Rematch offered.
 3. 🔄 A full match: ✅ start to the Ranking screen with two players (personal result, Level Up, Ranking; A moves on).
    🔄 **The Ranking screen ignores Main Menu (B) and Rematch (A)**, and Matching ignores Cancel (B); reproduced with
-   the Mac alone (the controls are read and the game reacts, then waits). Finding: Nextendo never answers the game's
-   MessageDelivery::DeliverMessage calls (protocol 27, method 1: the host's lobby messages); it only forwards each
-   message back as a request with the same call id. kinnay's SMB35 server forwards and then returns success. The host
-   needs the forward too (it starts the round once its own "close_participation" comes back), so replacing the
-   forward with a response stopped rounds starting, and appending the response to the same packet stalled the game.
-   A client-side fix needs an injected packet with every later sequence number renumbered; better fixed by Nextendo
-   (report drafted). The iPad (not the host) sticks as well, so there may be a second cause.
+   the Mac alone (the controls are read, the game plays the cancel sound, then waits; no service call, no NEX request,
+   no new thread). Not the cause, as tested 2026-10-21: Nextendo answers the host's DeliverMessage calls (protocol 27,
+   method 1: its lobby messages) only by forwarding the message back as a request with the same call id, where
+   kinnay's server also returns a response. A response added in place of the forward stopped rounds from starting
+   (the host waits for its own "close_participation" to come back); one added after the forward, as its own packet
+   with the later sequence numbers shifted (tools kept in the session scratchpad), stalled the game: the forward
+   apparently already completes the call. Next: find what the game's cancel path waits on (its state machine), and
+   compare with Ryujinx on Nextendo if the owner OKs running the dump there.
    ⬜ A longer match by hand: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
    and XP awarded.
 4. ⬜ Special Battle (the event rules from BCAT), and Daily Challenges counting in battles.
