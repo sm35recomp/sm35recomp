@@ -81,9 +81,9 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 7. ⬜ Performance: steady 60 fps in a full 35-player scene; the first-play shader stutter (prefetch and warm-up);
    memory use.
 
-## Phase 3: 35-player battles and Special Battle ⬜ (needs Phase 1)
+## Phase 3: 35-player battles and Special Battle 🔄
 
-1. ⬜ Matchmaking: NEX matchmaking and the matchmake referee (the game's `MatchmakeReferee` client) on Nextendo.
+1. 🔄 Matchmaking: ✅ works on Nextendo (2026-10-21: the Matching screen, the server sends the match relay `wss://51.178.29.194:30001/<id>` with a token and participant counts). ⬜ A match starting. NEX matchmaking and the matchmake referee (the game's `MatchmakeReferee` client) on Nextendo.
 2. ⬜ The in-match relay (`eagle`, the game's real-time transport): find what it connects to (a host from the NEX
    session, TCP, WebSocket or UDP), its TLS, and its framing; route it to Nextendo's relay.
 3. ⬜ A full match: the countdown, sending defeated enemies, the timer, item roulette, KOs, the results screen, coins
@@ -124,7 +124,7 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    screen, the Android launcher, the Windows exe and window title, the Linux desktop entry, and the setup screen.
    The repo, executable and ids can stay `sm35recomp`. One thing to weigh: "Super Mario" is Nintendo's trademark, and
    an unofficial app under that name is more likely to draw a takedown than "SM 35".
-2. ⬜ Screenshots for the GitHub README (owner request, 2026-10-21), as SMM2 Recomp's `docs/screenshots/`:
+2. ✅ Screenshots for the GitHub README (owner request, 2026-10-21; added the same day: menu, Course Practice, matchmaking, Daily Challenges, setup; a live 35-player match still to add), as SMM2 Recomp's `docs/screenshots/`:
    - the setup screen
    - the main menu
    - Course Practice

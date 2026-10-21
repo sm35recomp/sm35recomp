@@ -13,9 +13,20 @@ emulator: there is no CPU or GPU emulation at run time.
 
 It is a fork of [SMM2 Recomp](https://github.com/smm2recomp/smm2recomp), which shares its runtime and recompiler.
 
-> **Status: early.** The game boots to its main menu on macOS and the menus work. Everything past the menu (even
-> Course Practice) needs the game's online service, which isn't there yet: online play will go through
-> [Nextendo Network](https://nextendo.network). See [PROGRESS.md](PROGRESS.md).
+> **Status: early, and online again.** The game's online service comes from [Nextendo Network](https://nextendo.network),
+> a community server (never Nintendo's). Signed in to Nextendo, Course Practice plays, Special Battle is back, and
+> 35-Player Battle matchmaking runs (a full 35-player match is still to be tried). Tested on macOS and on an iPad. See
+> [PROGRESS.md](PROGRESS.md).
+
+## Screenshots
+
+| Main menu | Course Practice, on Nextendo | 35-Player Battle matchmaking |
+|---|---|---|
+| ![Main menu with 35-Player Battle, Special Battle and Course Practice](docs/screenshots/menu.jpg) | ![Mario jumping at a question block in course 1-1](docs/screenshots/course.jpg) | ![The Matching screen of a 35-Player Battle, the other players' screens around it](docs/screenshots/matching.jpg) |
+
+| Daily Challenges | The setup screen |
+|---|---|
+| ![Daily Challenges](docs/screenshots/daily.jpg) | ![SM35 Recomp's setup screen: your game, keys and firmware](docs/screenshots/setup.jpg) |
 
 ## Nothing of the game is included
 
@@ -34,10 +45,10 @@ are trademarks of Nintendo.
 
 | Platform | Graphics | Status |
 |---|---|---|
-| macOS 15+, Apple silicon | Metal | boots to the main menu |
+| macOS 15+, Apple silicon | Metal | Course Practice and matchmaking on Nextendo |
 | Windows 10 / 11, x86-64 (AVX2) | Vulkan 1.3 | builds; untested |
 | Linux x86-64 (AVX2) / arm64 | Vulkan 1.3 | builds; untested |
-| iOS / iPadOS | Metal | from source; not tried yet |
+| iOS / iPadOS | Metal | from source; plays on an iPad Pro (touch controls, Nextendo sign-in) |
 | Android, arm64 | Vulkan 1.3 | from source; not tried yet |
 
 ## Play it
@@ -52,6 +63,10 @@ are trademarks of Nintendo.
      logged).
 4. Press **Set up and play**. The first time it checks and extracts your files, copies the fonts and recompiles the
    game code (a few minutes to half an hour), then the game starts. Later starts go straight to the game.
+5. **Sign in to Nextendo Network.** The game needs its online service even for Course Practice. Make a free account at
+   [nextendo.network](https://nextendo.network), then in the game open the overlay menu (F1 or Esc; the menu button on
+   touch screens), go to **Online** and choose **Nextendo account: Sign in**. You sign in in your browser (the game
+   never sees your password), then restart the game.
 
 Keyboard: WASD stick, arrows d-pad, K/J/L/I = A/B/X/Y, Q/E = L/R, 1/3 = ZL/ZR, Enter / Backspace = + / -, F1 or Esc
 for the overlay menu. Controllers work through SDL.
