@@ -93,8 +93,11 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
    screen shows the stick after a restart).
 6. ⬜ Reference frames against Ryujinx-Nextendo running the owner's dump (owner OK needed for SM35, as for SMM2).
    Covers the main menu, course select, and a course in each theme.
-7. ⬜ Performance: steady 60 fps in a full 35-player scene; the first-play shader stutter (prefetch and warm-up);
-   memory use.
+7. 🔄 Performance. ✅ Shader stutter, measured on the Mac (2026-10-21, Course Practice): with an empty cache the
+   whole run compiles about 36 shaders in about 12 ms, so there is no first-play stutter to fix here. Two ~210 ms
+   frames remain, with a warm cache too: at the scene change into the battle menus (the game loads Scene_35Battle,
+   GameCommon, the course catalog and CourseSelect) and as a course starts: the game's own loading moments, behind its
+   transitions. ⬜ Steady 60 fps in a full 35-player scene; memory use; the same on Vulkan and the iPad.
 
 ## Phase 3: 35-player battles and Special Battle 🔄 (two-player matches play)
 
@@ -182,7 +185,8 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 3. ✅ Overlay menu tabs as in SMM2, without the SMM2-only Mods tab (2026-10-21): Controls, Video, Audio, Online, Quit. The
    Online tab holds the service and the Nextendo account, then the app's updates and game files.
 4. ⬜ Frame generation (120 fps output): try it on this game's 2D scenes; off by default, as in SMM2.
-5. ⬜ Shader prefetch and the pipeline cache tuned for SM35's shaders.
+5. ✅ Shader prefetch and the pipeline cache: not needed for SM35 (a few dozen small shaders, ~12 ms in all from cold;
+   Phase 2 item 7).
 6. ⬜ The update check and release notes flow (in place; check it once v0.2.0 exists).
 7. ✅ Remove the leftover SMM2 course-server code: `runtime/net/embed_server.*` and its boot call (2026-10-21). The
    settings were already SM35's own (`online.ini`, games/sm35/net.c); netcfg's notes now say so. `runtime/mods.c` stays:
