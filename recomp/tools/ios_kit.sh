@@ -4,13 +4,13 @@
 # Make your own SM35 Recomp for iPhone / iPad, on a Mac, from your own copy of the game. Nothing of the game is in
 # this repository or in any download: the game code is recompiled here from the files the Mac app set up.
 #
-# Before: the Mac app (SM35Recomp.app) set up once ("Set up and play"), so its data folder holds your game files
+# Before: the Mac app ("Super Mario 35") set up once ("Set up and play"), so its data folder holds your game files
 # (default: ~/Library/Application Support/org.sm35recomp.sm35recomp). Xcode, signed in to your Apple ID (Settings >
 # Accounts), with your device connected once so Xcode registers it. Homebrew's cmake and xcodegen.
 # The team id is the 10-character one Xcode shows for your account (Settings > Accounts > the team).
 #
 # Out, in build/ios-kit/: SM35Recomp.ipa, and Documents/ - the game files to copy into the app (Finder: select the
-# device > Files > SM35Recomp, drag the contents of Documents/ onto it). Install the .ipa from Finder too (drag it
+# device > Files > SM 35, drag the contents of Documents/ onto it). Install the .ipa from Finder too (drag it
 # onto the device), or with `xcrun devicectl device install app --device <name> build/sm35-ios-arm64/SM35Recomp.app`.
 #
 # The app needs two entitlements in its provisioning profile: extended virtual addressing (the game's memory window)
@@ -72,5 +72,5 @@ rm -f build/ios-kit/Documents/extracted/*.dylib build/ios-kit/Documents/extracte
 rm -f "$LINK"
 step "Done"
 echo "build/ios-kit/SM35Recomp.ipa: install it (Finder: drag it onto your device)."
-echo "build/ios-kit/Documents/: copy its contents into the app (Finder > your device > Files > SM35Recomp)."
+echo "build/ios-kit/Documents/: copy its contents into the app (Finder > your device > Files > SM 35)."
 echo "These hold your game: keep them to yourself."

@@ -34,9 +34,9 @@ GAME     ?= sm35
 GAMEDIR  := games/$(GAME)
 GAME_MOVIES := 1  # (runtime/hle/movie.c + FFmpeg: games whose code uses the movie library; game.mk may say 0)
 include $(GAMEDIR)/game.mk
-# The app / package name: GAME_TITLE without spaces ("SM35 Recomp" -> SM35Recomp)
+# The app / package file name: game.mk's GAME_APP_NAME, else GAME_TITLE without spaces
 space := $(subst ,, )
-APP_NAME := $(subst $(space),,$(GAME_TITLE))
+APP_NAME := $(or $(GAME_APP_NAME),$(subst $(space),,$(GAME_TITLE)))
 
 # Game files (set up by `make setup` from the dump), recompiled code, build products: one folder each per game.
 DATA     ?= private/$(GAME)
@@ -107,6 +107,8 @@ LLD      := $(if $(CROSS_CC),,-fuse-ld=lld)  # (zig links with its own lld)
 PLATFORM_SRC := runtime/platform/$(if $(IOS),macos,$(patsubst android,linux,$(PLATFORM))).c  # (iOS: the macOS layer, TARGET_OS_IPHONE inside; Android: the Linux one, __ANDROID__ inside)
 IMGUI    := third_party/imgui
 GENFLAGS := -O1 -fno-strict-aliasing -Wno-return-type -Wno-unused-label -fvisibility=hidden -Iruntime
+# the name players see: the game's, a shorter one on phones and tablets (game.mk GAME_MOBILE_TITLE)
+GAME_TITLE := $(if $(filter ios iossim android,$(PLATFORM)),$(or $(GAME_MOBILE_TITLE),$(GAME_TITLE)),$(GAME_TITLE))
 GAMEDEFS := -DGAME_TITLE_ID=$(GAME_TITLE_ID)ull -DGAME_ID='"$(GAME_ID)"' -DGAME_TITLE='"$(GAME_TITLE)"' -DGAME_BUNDLE_ID='"$(GAME_BUNDLE_ID)"' \
             -DGAME_DISPLAY_VERSION='"$(GAME_DISPLAY_VERSION)"' -DGAME_NEXTENDO_CLIENT_ID='"$(GAME_NEXTENDO_CLIENT_ID)"'
 

@@ -12,7 +12,8 @@ set -euo pipefail
 # names from games/<game>/game.mk (GAME as the Makefile's): the package id, the app's name, its game library
 game_var() { sed -n "s/^$1 *:= *//p" "$(dirname "$0")/../games/${GAME:-sm35}/game.mk"; }
 PKG=${RECOMP_ANDROID_PACKAGE:-$(game_var GAME_BUNDLE_ID)}
-TITLE=$(game_var GAME_TITLE)
+TITLE=$(game_var GAME_MOBILE_TITLE)  # (the launcher's name: short)
+TITLE=${TITLE:-$(game_var GAME_TITLE)}
 GLIB=lib$(game_var GAME_ID)game.so
 ADB=${ADB:-$(command -v adb || echo "${ANDROID_HOME:-}/platform-tools/adb")}
 if [ "$1" = --install ]; then

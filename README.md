@@ -55,7 +55,7 @@ are trademarks of Nintendo.
 
 1. Download the package for your system from the [releases](https://github.com/sm35recomp/sm35recomp/releases):
    `SM35Recomp-macos-arm64.zip`, `SM35Recomp-windows-x86_64.zip` or `SM35Recomp-linux-<arch>.tar.gz`.
-2. Unpack it and start `SM35Recomp.app` / `sm35recomp.exe` / `./sm35recomp`.
+2. Unpack it and start `Super Mario 35.app` / `sm35recomp.exe` / `./sm35recomp`.
 3. The setup screen asks for:
    - your Super Mario Bros. 35 with the 1.0.2 update: the NSP / XCI files, or folders with the extracted ExeFS and
      RomFS;
@@ -73,7 +73,7 @@ Keyboard: WASD stick, arrows d-pad, K/J/L/I = A/B/X/Y, Q/E = L/R, 1/3 = ZL/ZR, E
 for the overlay menu. Controllers work through SDL.
 
 macOS: the app isn't notarized. The first time, right-click it and choose Open; if macOS still blocks it, run
-`xattr -dr com.apple.quarantine /path/to/SM35Recomp.app`. Windows: see [docs/windows.md](docs/windows.md).
+`xattr -dr com.apple.quarantine "/path/to/Super Mario 35.app"`. Windows: see [docs/windows.md](docs/windows.md).
 
 ## Build it
 

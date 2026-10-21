@@ -1,7 +1,7 @@
 #!/bin/bash
 # usage: tools/bundle_macos.sh <exe>   (make app-macos does this)
-# The macOS player package: build/<APP_NAME>.app, zipped as dist/<APP_NAME>-macos-arm64.zip (SM35Recomp; names from
-# games/<game>/game.mk, tools/package_lib.sh).
+# The macOS player package: build/<GAME_TITLE>.app ("Super Mario 35.app"), zipped as dist/<APP_NAME>-macos-arm64.zip
+# (SM35Recomp; names from games/<game>/game.mk, tools/package_lib.sh).
 #   Contents/MacOS/<id>recomp      the runtime with its setup screen (runtime/ui/launcher.mm)
 #   Contents/Frameworks/           every non-system dylib it loads (SDL3, from build/deps: tools/build_deps_macos.sh),
 #                                  load paths rewritten to @rpath
@@ -15,7 +15,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 . tools/package_lib.sh
 EXE=${1:-build/$GAME-app/${GAME_ID}recomp}
-APP=build/$APP_NAME.app
+APP="build/$GAME_TITLE.app"
 DEPS=$PWD/build/deps
 ID=$GAME_ID
 BUNDLE_ID=$GAME_BUNDLE_ID

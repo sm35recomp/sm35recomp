@@ -162,11 +162,11 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 
 ## Phase 5: Parity with SMM2 Recomp and polish ⬜
 
-1. ⬜ The app's name, as the player sees it (owner request, 2026-10-20): "Super Mario 35", or "SM 35" where that is
-   too long (the iOS home screen fits about 12 characters). This covers the macOS app and Dock, the iOS/iPadOS home
-   screen, the Android launcher, the Windows exe and window title, the Linux desktop entry, and the setup screen.
-   The repo, executable and ids can stay `sm35recomp`. One thing to weigh: "Super Mario" is Nintendo's trademark, and
-   an unofficial app under that name is more likely to draw a takedown than "SM 35".
+1. ✅ The app's name, as the player sees it (owner request, 2026-10-20; done 2026-10-21, as SMM2 Recomp did): "Super
+   Mario 35" for the window, setup screen, macOS app and Dock ("Super Mario 35.app"), Linux menu entry and package
+   README; "SM 35" on the iOS / Android home screen (game.mk GAME_TITLE, GAME_MOBILE_TITLE). The package file names
+   (SM35Recomp-<target>.zip, GAME_APP_NAME), executables, bundle id and data folders stay, so downloads, saves and
+   sign-ins carry over. (The trademark risk of "Super Mario" in the name was noted; the owner chose it.)
 2. ✅ Screenshots for the GitHub README (owner request, 2026-10-21; added the same day: menu, Course Practice, matchmaking, Daily Challenges, setup; a live 35-player match still to add), as SMM2 Recomp's `docs/screenshots/`:
    - the setup screen
    - the main menu

@@ -107,7 +107,7 @@ and only says so, with a link; the overlay menu's Mods tab has the switch ("Chec
 
 | Package | Made by | Contents |
 |---|---|---|
-| `SM35Recomp-macos-arm64.zip` | `make GAME=sm35 app-macos` (`tools/bundle_macos.sh`) | `SM35Recomp.app`: the runtime (macOS 15+, SDL3 built for it by `tools/build_deps_macos.sh`), Resources: python, tools, gamelib-src, zig, hactool; signed ad hoc or with `RECOMP_MACOS_IDENTITY` |
+| `SM35Recomp-macos-arm64.zip` | `make GAME=sm35 app-macos` (`tools/bundle_macos.sh`) | `Super Mario 35.app`: the runtime (macOS 15+, SDL3 built for it by `tools/build_deps_macos.sh`), Resources: python, tools, gamelib-src, zig, hactool; signed ad hoc or with `RECOMP_MACOS_IDENTITY` |
 | `SM35Recomp-windows-x86_64.zip` | `make TARGET=windows-x86_64 GAME=sm35 DEPS=... package` (`tools/package.sh`) | `sm35recomp.exe`, SDL3 / libiconv / shaderc DLLs, the same tools |
 | `SM35Recomp-linux-x86_64.tar.gz`, `-linux-aarch64.tar.gz` | `make TARGET=linux-<arch> GAME=sm35 DEPS=... package` | `sm35recomp`, `lib/libshaderc.so.1`, the same tools |
 

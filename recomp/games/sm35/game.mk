@@ -1,6 +1,12 @@
 # Super Mario Bros. 35 (title 0100277011F1A000), version 1.0.2: what the shared Makefile needs to know.
 GAME_ID        := sm35
-GAME_TITLE     := SM35 Recomp
+# The name players see (window, setup screen, macOS app and Dock, Linux menu entry), and a shorter one for iOS /
+# Android home screens, which cut names past ~12 characters (owner's choice, 2026-10-20)
+GAME_TITLE     := Super Mario 35
+GAME_MOBILE_TITLE := SM 35
+# File names: the packages, the executable inside the iOS / Android apps. Kept as before the rename, so download
+# links and scripts carry over (the data folder follows GAME_BUNDLE_ID, which stays too)
+GAME_APP_NAME  := SM35Recomp
 GAME_BUNDLE_ID := org.sm35recomp.sm35recomp
 GAME_TITLE_ID  := 0x0100277011F1A000
 GAME_DISPLAY_VERSION := 1.0.2

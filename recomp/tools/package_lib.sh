@@ -9,13 +9,15 @@
 #   hactool/       hactool, for NSP / XCI and the firmware (tools/build_hactool.sh; ISC)
 #   licenses/      third-party licenses; THIRD-PARTY.txt says which is which
 # The game (GAME, as the Makefile's; default sm35) and its names from games/<game>/game.mk: GAME_ID, GAME_TITLE,
-# GAME_BUNDLE_ID, APP_NAME (the title without spaces: SM35Recomp.app, SM35Recomp-<target>.zip).
+# GAME_BUNDLE_ID, APP_NAME (GAME_APP_NAME: the package file names, SM35Recomp-<target>.zip; else the title without
+# spaces). The macOS app is named after the title ("Super Mario 35.app").
 GAME=${GAME:-sm35}
 game_var() { sed -n "s/^$1 *:= *//p" "games/$GAME/game.mk"; }
 GAME_ID=$(game_var GAME_ID)
 GAME_TITLE=$(game_var GAME_TITLE)
 GAME_BUNDLE_ID=$(game_var GAME_BUNDLE_ID)
-APP_NAME=${GAME_TITLE// /}
+APP_NAME=$(game_var GAME_APP_NAME)
+APP_NAME=${APP_NAME:-${GAME_TITLE// /}}
 [ -n "$GAME_ID" ] && [ -n "$GAME_TITLE" ] || { echo "games/$GAME/game.mk: no GAME_ID / GAME_TITLE"; exit 1; }
 REPO_URL=https://github.com/sm35recomp/sm35recomp
 
@@ -80,7 +82,7 @@ write_readme() {
     case "$target" in
         windows-*) run="${GAME_ID}recomp.exe" data='this folder (keep it somewhere you can write to, e.g. Documents - not Program Files)' ;;
         linux-*)   run="./${GAME_ID}recomp" data="~/.local/share/${GAME_ID}recomp" ;;
-        macos-*)   run="$APP_NAME.app" data="~/Library/Application Support/$GAME_BUNDLE_ID" ;;
+        macos-*)   run="$GAME_TITLE.app" data="~/Library/Application Support/$GAME_BUNDLE_ID" ;;
     esac
     cat > "$f" <<EOF
 $GAME_TITLE $ver ($target)
@@ -126,7 +128,7 @@ EOF
 macOS 15 or newer on Apple silicon. The app isn't notarized: the first time, right-click it and choose Open (macOS
 then checks the whole app once, which can take a few minutes). If
 macOS still refuses it or the recompiler ("zig", "python3", "hactool") is blocked, run once in Terminal:
-    xattr -dr com.apple.quarantine /path/to/$APP_NAME.app
+    xattr -dr com.apple.quarantine "/path/to/$GAME_TITLE.app"
 EOF
         ;;
     esac

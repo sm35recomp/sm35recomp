@@ -14,8 +14,10 @@ set -euo pipefail
 PLAT=$1 EXE=$2 APP=$3
 # names from games/<game>/game.mk (GAME as the Makefile's): SM35Recomp, org.sm35recomp.sm35recomp, the game's version
 game_var() { sed -n "s/^$1 *:= *//p" "$(dirname "$0")/../games/${GAME:-sm35}/game.mk"; }
-TITLE=$(game_var GAME_TITLE)
-NAME=${TITLE// /}
+TITLE=$(game_var GAME_MOBILE_TITLE)  # (the home screen's name: short)
+TITLE=${TITLE:-$(game_var GAME_TITLE)}
+NAME=$(game_var GAME_APP_NAME)
+NAME=${NAME:-$(game_var GAME_TITLE | tr -d ' ')}
 BUNDLE_ID=${RECOMP_IOS_BUNDLE_ID:-$(game_var GAME_BUNDLE_ID)}
 VERSION=$(game_var GAME_DISPLAY_VERSION)
 BUILD=$(git rev-list --count HEAD 2>/dev/null || echo 1)
