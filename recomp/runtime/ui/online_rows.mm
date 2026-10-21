@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "imgui.h"
 #include "option_rows.h"
 extern "C" {
 #include "../net/netcfg.h"
@@ -99,16 +100,24 @@ extern "C" void online_rows(void) {
     if (st.state == NX_WAITING_BROWSER) val = "Waiting for the browser...";
     else if (st.state == NX_SIGNED_IN) val = st.username[0] ? st.username : "Signed in";
     else if (st.state == NX_ERROR) val = "Sign-in failed";  // (short: the full message is in the description)
-    static char ad[400];
+    static char ad[800];
+    static const char need[] = "Needs a free Nextendo account with a verified e-mail and a linked Discord "
+                               "(nextendo.network).";
     snprintf(ad, sizeof ad, "%s%sSign in on nextendo.network in your browser. The game never sees your password; it "
-             "keeps a sign-in token for this device.", st.state == NX_ERROR ? st.message : "",
-             st.state == NX_ERROR && st.message[0] ? "\n\n" : "");
+             "keeps a sign-in token for this device.%s%s", st.state == NX_ERROR ? st.message : "",
+             st.state == NX_ERROR && st.message[0] ? "\n\n" : "", st.state != NX_SIGNED_IN ? "\n\n" : "",
+             st.state != NX_SIGNED_IN ? need : "");
     if (opt_action("Nextendo account", val, ad)) {
 #ifdef NX_SHEET
         if (st.state != NX_SIGNED_IN && st.state != NX_WAITING_BROWSER) sign_in();  // (the sheet may be up)
 #else
         if (st.state != NX_SIGNED_IN) sign_in();
 #endif
+    }
+    if (st.state != NX_SIGNED_IN) {  // (what an account needs, before the first try rather than after a refusal)
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextDisabled("%s", need);
+        ImGui::PopTextWrapPos();
     }
     if (st.state == NX_SIGNED_IN &&
         opt_action("Sign out", "", "Forget this computer's Nextendo sign-in."))
