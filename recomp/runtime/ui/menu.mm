@@ -499,8 +499,8 @@ static void tab_display(void) {
     opt_section("Display");
     const char *aspects[] = {"Unlocked", "Original 16:9"};
     opt_choice("Aspect ratio", &g_settings.aspect, aspects, 2, ASPECT_UNLOCKED,
-               "Unlocked: the view fills the window, so wider (or taller) windows show more of the island - up to "
-               "ultrawide; houses and dungeons keep their framing. Original 16:9: the game's own framing, with bars.");
+               "Unlocked: the image fills the window, whatever its shape. Original 16:9: the game's own framing, with "
+               "bars.");
     bool fs = g_settings.fullscreen;
     if (opt_toggle("Fullscreen", &fs, false, "Fills the screen. Also: F11, Alt+Enter or Cmd+Ctrl+F.")) {
         g_settings.fullscreen = fs;
@@ -522,7 +522,7 @@ static void tab_display(void) {
         float sx, sy;
         renderer_get_scale(&sx, &sy);
         char d[400];
-        int n = snprintf(d, sizeof d, "How sharp the 3D image is. Match display: your screen's own resolution. Dynamic: "
+        int n = snprintf(d, sizeof d, "How sharp the image is. Match display: your screen's own resolution. Dynamic: "
                                       "as sharp as your GPU keeps at full speed. 1x-4x: the Switch's 1080p times that. "
                                       "75%% / 50%% / 25%%: a share of the display, for slower machines.\n\nRendering at "
                                       "%.0f x %.0f.", 1920.0 * sx, 1080.0 * sy);
@@ -559,11 +559,7 @@ static void tab_display(void) {
                "high-refresh monitors). The game itself still runs at 60. Adds a little input lag; fast motion may show "
                "small artifacts. Does nothing on a 60 Hz display.");
 
-    opt_section("Game");
-    opt_toggle("Remove blur", &g_settings.blur_removal, false,
-               "Turns off the tilt-shift blur at the top and bottom of the screen.");
-    opt_toggle("Hide Hero Mode icon", &g_settings.hide_hero_icon, false,
-               "Hides the Hero Mode emblem in the corner of the screen while playing a Hero Mode file.");
+    // (LAS Recomp's "Game" section - Remove blur, Hide Hero Mode icon - is not shown: nothing in SM35 reads those settings)
     opt_end();
 }
 
@@ -575,8 +571,10 @@ static void tab_audio(void) {
                    "The game's volume. 100% is the game's own level; above it, louder."))
         g_settings.volume = pct / 100.0f;
     opt_toggle("Reverb", &g_settings.reverb, true, "The game's reverb effect.");
+#if !defined(GAME_HAS_MOVIES) || GAME_HAS_MOVIES
     opt_toggle("Movie audio", &g_settings.movie_audio, true,
                "Sound in the game's movies. Applies the next time a movie starts.");
+#endif
     opt_end();
 }
 
@@ -661,8 +659,8 @@ static void tab_about(void) {
         for (int i = 1; i < N_LANGUAGES; i++) names[i] = g_language_names[i];
         if (choice("Language", &g_settings.language, names, N_LANGUAGES)) settings_save();
     }
-    hint("The game's text language, as its own system setting. Applies when the game restarts: Quit -> Title "
-         "screen, then Play.");
+    hint("The game's text language, as its own system setting. Applies when the game restarts: Quit, Quit to "
+         "Start Screen, then Play.");
     ImGui::Spacing();
     header("Controls");
     controls_bindings_draw(ImGui::GetFontSize() / 34);

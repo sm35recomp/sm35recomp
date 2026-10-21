@@ -250,7 +250,8 @@ MBEDTLS  := third_party/mbedtls
 MBEDTLS_FLAGS := -I$(MBEDTLS)/include -Iruntime/net -DMBEDTLS_USER_CONFIG_FILE='"mbedtls_user_config.h"'
 MBEDTLS_OBJ := $(patsubst $(MBEDTLS)/library/%.c,$(B)/mbedtls/%.o,$(wildcard $(MBEDTLS)/library/*.c))
 RTFLAGS  := -O2 -g -fno-strict-aliasing -Wall -Wno-unused-function -Iruntime -Iruntime/nvn $(DEPINC) $(OSFLAGS) $(GAMEDEFS)
-CXXFLAGS := -O2 -g -std=c++17 -I$(IMGUI) -I$(IMGUI)/backends -Iruntime -Iruntime/nvn $(DEPINC) $(GAMEDEFS)
+CXXFLAGS := -O2 -g -std=c++17 -I$(IMGUI) -I$(IMGUI)/backends -Iruntime -Iruntime/nvn $(DEPINC) $(GAMEDEFS) \
+            -DGAME_HAS_MOVIES=$(if $(filter 0,$(strip $(GAME_MOVIES))),0,1)  # (the overlay menu: Movie audio)
 CXXFLAGS += $(if $(filter android,$(PLATFORM)),-fPIC)  # (Android: everything goes into shared libraries)
 
 all: $(EXE) $(if $(GEN_SRC),$(GAMELIB))
