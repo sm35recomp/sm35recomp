@@ -21,7 +21,7 @@ the repo's proprietary-content check blocks.
 | `tools/` | the recompiler: `gen.py` (a whole NSO module -> C), `lifter.py`, `simd_c.py`, `nso.py`, tests; packaging scripts |
 | `runtime/` | the shared runtime: loader, dispatcher, kernel, IPC + services, NVN on Metal / Vulkan, platform layers, setup screen |
 | `games/sm35/` | the game's glue: `game.mk` (identity, dump paths), `setup.py` (lays out the dump), `sysdata.py`, `versions.py`, patches, HLE list |
-| `third_party/` | Dear ImGui (setup screen, overlay menu), SMAA, bcdec, Mbed TLS (the game's ssl service) |
+| `third_party/` | Dear ImGui (setup screen, overlay menu), SMAA, bcdec, Mbed TLS (the game's ssl service), puff (inflate: Nextendo's event zip) |
 | `docs/` | findings from the bring-up (names and behaviour only, no game code) |
 | `private/`, `generated/`, `build/` | made from your dump (ignored; may be symlinks to another disk) |
 

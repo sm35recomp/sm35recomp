@@ -90,7 +90,7 @@ Before committing: `scripts/check.sh` (the same gates as CI) and `scripts/instal
   is forked from.
 - [LAS Recomp](https://github.com/peiikai/LASRecomp) (MIT), the recompilation of *Link's Awakening* SMM2 Recomp is
   forked from, and [SuperMarioWonderRecomp](https://github.com/BelmanteGu/SuperMarioWonderRecomp) (MIT) for ideas.
-- Dear ImGui, SMAA, bcdec, Mbed TLS, SDL3, shaderc, zig, python-build-standalone, capstone, unicorn and hactool:
+- Dear ImGui, SMAA, bcdec, Mbed TLS, zlib's puff, SDL3, shaderc, zig, python-build-standalone, capstone, unicorn and hactool:
   see [recomp/UPSTREAM.md](recomp/UPSTREAM.md) and each package's `THIRD-PARTY.txt`.
 - [Nextendo Network](https://nextendo.network), for the online play to come.
 

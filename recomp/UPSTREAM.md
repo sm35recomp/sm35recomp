@@ -18,7 +18,7 @@ the SDL3 / Metal / Vulkan backends) and `third_party/smaa` (MIT-style, `third_pa
 `third_party/bcdec` (bcdec by Sergii Kudlai, MIT or Unlicense, `third_party/bcdec/LICENSE`): BC texture decoding on
 the CPU for GPUs without BC support (the iOS Simulator). `third_party/mbedtls` (Mbed TLS 3.6.7 LTS, Apache-2.0 OR
 GPL-2.0-or-later, taken under Apache-2.0; `third_party/mbedtls/LICENSE`, `README.recomp`): TLS for the game's own
-ssl service (`runtime/services/ssl.c`), sources unmodified.
+ssl service (`runtime/services/ssl.c`), sources unmodified. `third_party/puff` (zlib 1.3.1's contrib/puff by Mark Adler, zlib licence, in `puff.h`): the inflater for Nextendo's Special Battle event zip (`games/sm35/events.c`).
 
 ## What was taken from LAS Recomp
 
