@@ -48,14 +48,16 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 5. ✅ NEX login, live (2026-10-21): the auth server (`g21f12900-lp1.s.n.srv.nintendo.net`, TLS WebSocket, pinned),
    then the secure server (port 60014). Fixed on the way: `getaddrinfo` gave the address byte-swapped.
 6. ✅ The update is **1.0.2** (title version 0x20000), which Nextendo requires; the recomp called it 1.0.1 before.
-7. 🔄 iOS sign-in: Nextendo accepts only the loopback redirect for this client, so the iOS sheet runs the same listener
-   and closes when the sign-in ends (built; to test on the owner's iPad).
-8. ⬜ Special Battle: Nextendo publishes the event as `Dat/sp_battle.dat` in a zip at
-   `GET https://nextendo.network/api/bcat/0100277011f1a000` (their console app lays it over the RomFS). Fetch it at
-   start when signed in and lay it over the RomFS.
-9. ⬜ The error applet: when a network step fails, the game opens the system error dialog. `am` has to run the
-   library-applet flow and show the message, rather than send the player back without a word.
-10. ⬜ Offline, signed out: the game says why (through 9) instead of returning to the menu.
+7. ✅ iOS sign-in: Nextendo accepts only the loopback redirect for this client, so the iOS sheet runs the same listener
+   and closes when the sign-in ends. Signed in on the owner's iPad, and courses start there (2026-10-21). Signing in
+   also chooses Nextendo as the Service (a stray Offline choice had sent courses back to the menu).
+8. ✅ Special Battle: Nextendo publishes the event as `Dat/sp_battle.dat` in a zip at
+   `GET https://nextendo.network/api/bcat/0100277011f1a000`; `games/sm35/events.c` fetches it at start (4 s at most),
+   unpacks it (zlib's puff) to `events/romfs/` and lays it over the RomFS. The main menu offers Special Battle.
+9. ✅ Offline: the game opens no error dialog of its own (nifm has no applet to give it), so the overlay shows a
+   notice when the game asks for the network: not signed in, the Service not Nextendo, or a restart needed.
+10. ⬜ Online but failing (Nextendo down, the login refused): the game drops back to the menu; say why (the NEX login's
+    result is in the log).
 11. ✅ Tests: the request, sign-in and token paths against a local mock (`tools/test_net.sh`, 27 cases; one combined
     run in five failed with no output under load, not reproduced in 46 runs since: watch it).
 
@@ -64,11 +66,13 @@ most of the client side; it was ported (branch `nextendo`, merged 2026-10-21) an
 1. 🔄 Course Practice: 1-1 starts and plays (run, scroll, Goombas, Game Over, retry). Every course starts, plays and
    clears; saving works (`save/save_0`).
 2. 🔄 Rendering in courses. ✅ Bindless textures on Metal (the sprite shader takes each sprite's texture handle from
-   its vertices: the course was black). ⬜ The same in the Vulkan / GLSL path (Windows, Linux, Android). ⬜ Go
+   its vertices: the course was black). 🔄 The same in the Vulkan / GLSL path (Windows, Linux, Android): built, the
+   shader compiles to SPIR-V; not run on a GPU yet. ⬜ Go
    through every course theme (overworld, underground, castle, water, the 8-4 style ones); check the
    35-player screen layout (the other players' small screens around the main one).
 3. ⬜ Audio: BGM streams (`.bfstm`), sound effects, Opus voice/stream decoding. `hwopus` is a logging stub today.
-4. ⬜ Input: every button the game uses (item roulette with R, targeting with L or the right stick, touch on handheld
+4. 🔄 Input: ✅ the left stick also presses the d-pad (the game walks only with the d-pad here; the iPad's touch stick
+   and controllers did nothing). ⬜ Every button the game uses (item roulette with R, targeting with L or the right stick, touch on handheld
    screens), rumble, gyro (the SDK reads six-axis: check it's harmless).
 5. ⬜ Menus: Stats, Options (all settings saved and restored), the icon picker (X: Icons), level and coins, Daily
    Challenges progress.
