@@ -17,7 +17,8 @@ never Nintendo's servers. Bring-up notes are in
   Matching / Ranking buttons are **hold-to-confirm** (that was never a bug). Online failures show a notice that says
   why. Audio confirmed by ear. Vulkan path runs (Linux arm64 under lavapipe; Android emulator).
 - **Released:** v0.4.0 on GitHub (macOS, Windows, Linux packages: launcher + recompiler, no game code), installed on the
-  owner's Mac (/Applications/Super Mario 35.app) and iPad (a private build with the game code, bundle
+  owner's Mac (/Applications/Super Mario 35.app: its first start shows the setup screen once, Set up and play
+  rebuilds the game code; the old SM35Recomp.app was removed) and iPad (build 61: a private build with the game code, bundle
   com.adriansmith.sm35recomp, shown as "SM 35"). iOS players use `recomp/tools/ios_kit.sh` (README: iPhone / iPad).
 - **Tested by others, not by us:** the owner has outside testers for long 35-player matches and for Windows / Linux
   on real hardware. Their reports arrive as GitHub Issues (README: Reporting problems lists the logs).
